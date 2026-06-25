@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Combobox } from '../../components/ui/Combobox';
-import { useVehicleCatalog } from '../../hooks/useVehicleCatalog'; // <-- Il nostro nuovo hook
+import { useVehicleCatalog } from '../../hooks/useVehicleCatalog';
 
 interface OnboardingViewProps {
   onCarSubmit: (plate: string, brand: string) => void;
@@ -14,10 +14,9 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
   const [model, setModel] = useState('');
   const [error, setError] = useState('');
 
-  // Estraiamo la logica del catalogo dall'hook dedicato
   const { brands, getModelsForBrand, isLoading } = useVehicleCatalog();
 
-  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError('');
 
@@ -36,31 +35,40 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 font-sans">
-      <div className="w-full max-w-md bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl text-slate-100">
-        <h1 className="text-2xl font-bold mb-2">
-          Benvenuto in <span className="text-blue-500">CarVoice AI</span>
-        </h1>
-        <p className="text-sm text-slate-400 mb-6">Configura la tua auto per iniziare.</p>
+    <div className="min-h-screen flex items-center justify-center bg-[#090d16] p-6 font-sans selection:bg-blue-500/30 selection:text-blue-200">
+      <div className="w-full max-w-md bg-[#101524] p-8 border border-slate-800/60 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
+        
+        <div className="mb-8">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[11px] font-medium tracking-wide mb-3">
+            <span>✨</span> Progetto Vocale AI
+          </div>
+          <h1 className="text-xl font-semibold text-white tracking-tight">
+            Benvenuto in CarVoice
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Configura il tuo veicolo principale per sbloccare la dashboard.
+          </p>
+        </div>
 
         {isLoading ? (
-          <div className="text-center py-8 text-slate-400 animate-pulse">
-            Caricamento listino auto...
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <div className="w-5 h-5 border-2 border-slate-700 border-t-blue-500 rounded-full animate-spin"></div>
+            <span className="text-xs text-slate-500 font-medium tracking-wide uppercase">Inizializzazione catalogo...</span>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <Input
-              label="Targa dell'auto"
+              label="Targa Veicolo"
               placeholder="es. AA123BB"
               maxLength={7}
               value={plate}
-              onChange={(e) => setPlate(e.target.value)}
+              onChange={(e) => setPlate(e.target.value.toUpperCase())}
             />
             
-            <div className="flex flex-col gap-5 bg-slate-950 p-4 rounded-xl border border-slate-800">
+            <div className="flex flex-col gap-5 bg-slate-950/30 p-4 border border-slate-900 rounded-lg">
               <Combobox
                 label="Marca"
-                placeholder="Seleziona o digita..."
+                placeholder="Seleziona costruttore..."
                 value={brand}
                 onChange={(value) => {
                   setBrand(value);
@@ -71,7 +79,7 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
 
               <Combobox
                 label="Modello"
-                placeholder="Seleziona o digita..."
+                placeholder="Seleziona modello..."
                 value={model}
                 onChange={setModel}
                 options={getModelsForBrand(brand)}
@@ -79,9 +87,13 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
               />
             </div>
 
-            {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
+            {error && (
+              <div className="text-xs text-red-400 font-medium bg-red-950/20 border border-red-900/30 p-3 rounded-lg flex items-center gap-2">
+                ⚠️ {error}
+              </div>
+            )}
 
-            <Button type="submit">Aggiungi al Garage</Button>
+            <Button type="submit">Completa Configurazione</Button>
           </form>
         )}
       </div>
