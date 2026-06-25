@@ -4,6 +4,7 @@ import { Button } from '../../shared/ui/Button';
 import { Combobox } from '../../shared/ui/Combobox';
 import { useVehicleCatalog } from './hook/useVehicleCatalog';
 import { useAddVehicle } from './hook/useAddVehicle';
+import { useCarContext } from '../../shared/context/CarContext';
 
 
 export function AddVehicleView() {
@@ -14,6 +15,8 @@ export function AddVehicleView() {
 
   const { brands, getModelsForBrand, isLoading } = useVehicleCatalog();
   const { addCar } = useAddVehicle();
+  
+  const { setIsAdding, cars } = useCarContext();
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -100,7 +103,14 @@ export function AddVehicleView() {
             <div className="mt-2">
               <Button type="submit">Salva nel Garage</Button>
             </div>
-          </form>
+
+
+            {cars.length > 0 && (
+              <Button variant="primary" onClick={() => setIsAdding(false)}>
+                Annulla
+              </Button>
+            )}
+          </form>    
         )}
       </div>
     </div>

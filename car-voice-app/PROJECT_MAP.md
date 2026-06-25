@@ -19,8 +19,6 @@
 ├── shared/
 │   ├── context/
 │   │   ├── CarContext.tsx
-│   ├── hooks/
-│   │   ├── useCarsQuery.ts
 │   ├── services/
 │   ├── types/
 │   │   ├── car.ts
