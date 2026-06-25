@@ -6,6 +6,7 @@ interface CarContextType {
   isLoading: boolean;
   addCar: (plate: string, brand: string, model: string) => void;
   deleteCar: (id: string) => void;
+  resetGarage: () => void;
 }
 
 const CarContext = createContext<CarContextType | undefined>(undefined);
@@ -70,8 +71,19 @@ export const CarProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     */
   };
 
+  const resetGarage = () => {
+    setCars([]); // Svuota lo stato di React
+    localStorage.removeItem('carvoice_cars'); // Elimina la chiave dal LocalStorage
+
+    /* 💡 FUTURO CON FIRESTORE:
+    if (user) {
+      await updateDoc(doc(db, "users", user.uid), { cars: [] });
+    }
+    */
+  };
+
   return (
-    <CarContext.Provider value={{ cars, isLoading, addCar, deleteCar }}>
+    <CarContext.Provider value={{ cars, isLoading, addCar, deleteCar, resetGarage }}>
       {children}
     </CarContext.Provider>
   );

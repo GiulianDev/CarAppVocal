@@ -1,10 +1,12 @@
-import { OnboardingView } from './features/addVehicle/OnboardingView';
-import { DashboardView } from './features/dashboard/DashboardView';
+import { AddVehicleView } from './features/addVehicle/AddVehicleView';
+import { VehicleDetailView } from './features/vehicleDetail/VehicleDetailView';
+import { VehiclesDashboardView } from './features/vehiclesDashboard/VehiclesDashboardView';
 import { useCarsQuery } from './shared/hooks/useCarsQuery';
 
 export default function App() {
   const { cars, isLoading } = useCarsQuery();
 
+  // 1. Stato di caricamento (es. lettura da LocalStorage o futuro fetch da Firestore)
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#050508] text-white font-sans gap-4">
@@ -14,9 +16,17 @@ export default function App() {
     );
   }
 
+  // 2. Scenario 0 auto: Mostra la vista di onboarding/configurazione
   if (cars.length === 0) {
-    return <OnboardingView/>;
+    return <AddVehicleView />;
   }
 
-  // return <DashboardView/>;
+  // 3. Scenario 1 auto: Mostra la pagina di dettaglio verticale dell'unico veicolo attivo
+  if (cars.length === 1) {
+    return <VehicleDetailView car={cars[0]} />;
+  }
+
+  // 4. Scenario più auto (> 1): Mostra l'hub di gestione dell'intera flotta
+  // Nota: Passiamo l'intero array 'cars'. Nel prossimo step modificheremo le sue props per accettarlo.
+  return <VehiclesDashboardView cars={cars} />;
 }

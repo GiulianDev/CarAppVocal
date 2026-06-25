@@ -6,7 +6,7 @@ import { useVehicleCatalog } from './hook/useVehicleCatalog';
 import { useAddVehicle } from './hook/useAddVehicle';
 
 
-export function OnboardingView() {
+export function AddVehicleView() {
   const [plate, setPlate] = useState('');
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');

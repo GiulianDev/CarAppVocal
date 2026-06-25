@@ -1,23 +1,28 @@
 # CarAppVocal
 
 
+genera mappa
+
+- uv run generate_map.py > ./PROJECT_MAP.md
+
 pattern 
 
 src/
-├── components/          # Componenti UI generici e atomici (Shared)
-│   └── ui/
-│       ├── Button.tsx
-│       └── Input.tsx
-├── features/            # I moduli Core dell'applicazione
-│   ├── dashboard/       # Tutto ciò che riguarda la schermata principale
-│   │   └── DashboardView.tsx
-│   └── onboarding/      # Tutto ciò che riguarda il primo accesso
-│       ├── components/
-│       │   └── CarForm.tsx
-│       └── OnboardingView.tsx
-├── hooks/               # Custom Hooks globali
-│   └── useCars.ts       # Gestisce lo stato e la persistenza sul LocalStorage
-├── types/               # Definizioni dei tipi TypeScript globali
-│   └── car.ts
-├── App.tsx              # Il Router/Coordinatore centrale
-└── main.tsx
+├── features/
+│   ├── addVehicle/               # FEATURE: Schermata iniziale / Inserimento auto
+│   │   ├── hooks/useAddVehicle.ts
+│   │   └── AddVehicleView.tsx
+│   │
+│   ├── vehicleDetail/            # FEATURE: Schermata per AUTO SINGOLA (Dettaglio/Comandi)
+│   │   └── VehicleDetailView.tsx
+│   │
+│   └── vehiclesDashboard/        # FEATURE: Schermata per AUTO MULTIPLE (Gestione Flotta)
+│       └── VehiclesDashboardView.tsx
+│
+├── shared/                       # Tutto ciò che è trasversale e globale
+│   ├── context/CarContext.tsx    # Lo stato globale (LocalStorage ora, Firebase domani)
+│   ├── hooks/useCarsQuery.ts     # L'hook per permettere ad App.tsx di leggere lo stato
+│   └── types/car.ts              # L'interfaccia TypeScript dell'oggetto Car
+│
+├── App.tsx                       # Il Direttore d'Orchestra (Router condizionale)
+└── main.tsx                      # Punto di ingresso (dove avvolgiamo l'app nel Provider)
