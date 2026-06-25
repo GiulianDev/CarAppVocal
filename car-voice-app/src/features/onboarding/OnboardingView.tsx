@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Combobox } from '../../components/ui/Combobox';
-import { fetchOnlineCars } from '../../data/cars'; // Importiamo la funzione online
+import { useVehicleCatalog } from '../../hooks/useVehicleCatalog'; // <-- Il nostro nuovo hook
 
 interface OnboardingViewProps {
   onCarSubmit: (plate: string, brand: string) => void;
@@ -14,26 +14,10 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
   const [model, setModel] = useState('');
   const [error, setError] = useState('');
 
-  // Stati per i dati scaricati online
-  const [carBrands, setCarBrands] = useState<string[]>([]);
-  const [carModelsMap, setCarModelsMap] = useState<Record<string, string[]>>({});
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  // Estraiamo la logica del catalogo dall'hook dedicato
+  const { brands, getModelsForBrand, isLoading } = useVehicleCatalog();
 
-  // Scarica i dati al montaggio del componente
-  useEffect(() => {
-    async function loadCars() {
-      const data = await fetchOnlineCars();
-      setCarBrands(data.brands);
-      setCarModelsMap(data.modelsMap);
-      setIsLoadingData(false);
-    }
-    loadCars();
-  }, []);
-
-  // Recupera i modelli in base alla marca selezionata
-  const availableModels = carModelsMap[brand] || [];
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
 
@@ -43,13 +27,8 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
       return;
     }
 
-    if (!brand.trim()) {
-      setError('Inserisci la Marca');
-      return;
-    }
-
-    if (!model.trim()) {
-      setError('Inserisci il Modello');
+    if (!brand.trim() || !model.trim()) {
+      setError('Seleziona sia la marca che il modello');
       return;
     }
 
@@ -62,13 +41,11 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
         <h1 className="text-2xl font-bold mb-2">
           Benvenuto in <span className="text-blue-500">CarVoice AI</span>
         </h1>
-        <p className="text-sm text-slate-400 mb-6">
-          Configura la tua auto per iniziare.
-        </p>
+        <p className="text-sm text-slate-400 mb-6">Configura la tua auto per iniziare.</p>
 
-        {isLoadingData ? (
+        {isLoading ? (
           <div className="text-center py-8 text-slate-400 animate-pulse">
-            Caricamento listino auto mondiale...
+            Caricamento listino auto...
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -89,7 +66,7 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
                   setBrand(value);
                   setModel(''); 
                 }}
-                options={carBrands}
+                options={brands}
               />
 
               <Combobox
@@ -97,7 +74,7 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
                 placeholder="Seleziona o digita..."
                 value={model}
                 onChange={setModel}
-                options={availableModels}
+                options={getModelsForBrand(brand)}
                 disabled={!brand} 
               />
             </div>
