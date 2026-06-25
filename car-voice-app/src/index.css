@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+@theme {
+  /* 1. Palette Colori Core: Blu Metallico e Acciaio Scuro */
+  --color-steel-950: #05060b;
+  --color-steel-900: #0b0d14;
+  --color-steel-800: #151821;
+  --color-steel-700: #222735;
+  
+  --color-metal-blue: #1e52d4;
+  --color-metal-blue-hover: #1643b5;
+  --color-metal-blue-focus: #3b72f7;
+
+  /* 2. Token Semantici dell'Interfaccia */
+  --color-ui-bg: var(--color-steel-950);
+  --color-ui-surface: var(--color-steel-900);
+  --color-ui-input-bg: rgba(5, 6, 11, 0.4);
+  --color-ui-border: var(--color-steel-800);
+  --color-ui-border-focus: var(--color-metal-blue-focus);
+  
+  --color-ui-text-main: #f4f4f5;  /* zinc-100 */
+  --color-ui-text-muted: #a1a1aa; /* zinc-400 */
+}
+
+/* Scrollbar minimale coordinata */
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -10,15 +33,15 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.2); /* indigo-500 con opacità */
+  background: rgba(30, 82, 212, 0.2);
   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.4); /* violet-500 con opacità */
+  background: rgba(59, 114, 247, 0.4);
 }
 
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(99, 102, 241, 0.2) transparent;
+  scrollbar-color: rgba(30, 82, 212, 0.2) transparent;
 }
