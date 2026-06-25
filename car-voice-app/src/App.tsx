@@ -1,6 +1,6 @@
 import { OnboardingView } from './features/onboarding/OnboardingView';
 import { DashboardView } from './features/dashboard/DashboardView';
-import { useCars } from './hooks/useCar';
+import { useCars } from './shared/hooks/useCar';
 
 export default function App() {
   const { cars, isLoading, addCar, resetGarage } = useCars();

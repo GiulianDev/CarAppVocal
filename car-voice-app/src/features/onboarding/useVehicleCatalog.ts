@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchVehicleCatalog } from '../services/vehicleService';
+import { fetchVehicleCatalog } from './vehicleService';
 
 export function useVehicleCatalog() {
   const [brands, setBrands] = useState<string[]>([]);

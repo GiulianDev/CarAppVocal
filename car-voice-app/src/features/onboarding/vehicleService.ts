@@ -1,3 +1,6 @@
+/* 
+ * Recupera brand e modelli delle auto
+ */
 const DATASET_URL = "https://raw.githubusercontent.com/matthlavacka/car-list/master/car-list.json";
 
 export interface ApiCarItem {

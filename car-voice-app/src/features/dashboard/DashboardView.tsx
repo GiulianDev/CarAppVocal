@@ -1,5 +1,5 @@
-import { Button } from '../../components/ui/Button';
-import type { Car } from '../../types/car';
+import { Button } from '../../shared/ui/Button';
+import type { Car } from '../../shared/types/car';
 
 interface DashboardViewProps {
   car: Car;

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Input } from '../../components/ui/Input';
-import { Button } from '../../components/ui/Button';
-import { Combobox } from '../../components/ui/Combobox';
-import { useVehicleCatalog } from '../../hooks/useVehicleCatalog';
+import { Input } from '../../shared/ui/Input';
+import { Button } from '../../shared/ui/Button';
+import { Combobox } from '../../shared/ui/Combobox';
+import { useVehicleCatalog } from './useVehicleCatalog';
 
 interface OnboardingViewProps {
   onCarSubmit: (plate: string, brand: string) => void;
