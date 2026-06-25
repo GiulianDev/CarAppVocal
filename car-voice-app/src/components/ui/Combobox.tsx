@@ -57,12 +57,12 @@ export function Combobox({ label, value, onChange, options, placeholder, disable
       </div>
 
       {isOpen && !disabled && (
-        <ul className="absolute top-[calc(100%+6px)] left-0 w-full bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/80 rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.5)] max-h-52 overflow-y-auto z-50 custom-scrollbar p-1 animate-in fade-in slide-in-from-top-2 duration-150">
+        <ul className="absolute top-[calc(100%+6px)] left-0 w-full bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-lg shadow-[0_25px_50px_rgba(0,0,0,0.75)] max-h-52 overflow-y-auto z-50 custom-scrollbar p-1 animate-in fade-in slide-in-from-top-2 duration-150 ring-1 ring-white/5">
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option) => (
               <li
                 key={option}
-                className="px-3 py-2 text-sm text-zinc-300 hover:bg-indigo-600 hover:text-white rounded-md cursor-pointer transition-colors"
+                className="px-3 py-2 text-sm text-zinc-300 hover:bg-indigo-600 hover:text-white rounded-md cursor-pointer transition-colors font-sans"
                 onClick={() => {
                   onChange(option);
                   setIsOpen(false);
@@ -72,7 +72,7 @@ export function Combobox({ label, value, onChange, options, placeholder, disable
               </li>
             ))
           ) : (
-            <li className="px-3 py-2 text-sm text-zinc-500 italic">
+            <li className="px-3 py-2 text-sm text-zinc-500 italic font-sans">
               Nessun risultato.
             </li>
           )}
