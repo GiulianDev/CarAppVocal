@@ -3,10 +3,9 @@ import type { Car } from '../../shared/types/car';
 
 interface DashboardViewProps {
   car: Car;
-  onReset: () => void;
 }
 
-export function DashboardView({ car, onReset }: DashboardViewProps) {
+export function DashboardView({ car }: DashboardViewProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 font-sans">
       <div className="w-full max-w-md bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl text-slate-100">

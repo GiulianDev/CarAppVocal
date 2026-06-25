@@ -1,18 +1,6 @@
-/*
- * Si occupa solo di recuperare la lista delle cars per utente dal local storage 
- */
-import { useEffect, useState } from "react";
-import type { Car } from "../types/car";
+import { useCarContext } from '../context/CarContext';
 
 export function useCarsQuery() {
-  const [cars, setCars] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Logica semplice di lettura da localStorage
-    const saved = localStorage.getItem('cars');
-    setCars(saved ? JSON.parse(saved) : []);
-    setIsLoading(false);
-  }, []);
-
-return { cars: [] as Car[], isLoading: false };}
+  const { cars, isLoading } = useCarContext();
+  return { cars, isLoading };
+}

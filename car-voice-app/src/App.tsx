@@ -1,9 +1,9 @@
-import { OnboardingView } from './features/onboarding/OnboardingView';
+import { OnboardingView } from './features/addVehicle/OnboardingView';
 import { DashboardView } from './features/dashboard/DashboardView';
-import { useCars } from './shared/hooks/useCar';
+import { useCarsQuery } from './shared/hooks/useCarsQuery';
 
 export default function App() {
-  const { cars, isLoading, addCar, resetGarage } = useCars();
+  const { cars, isLoading } = useCarsQuery();
 
   if (isLoading) {
     return (
@@ -15,8 +15,8 @@ export default function App() {
   }
 
   if (cars.length === 0) {
-    return <OnboardingView onCarSubmit={addCar} />;
+    return <OnboardingView/>;
   }
 
-  return <DashboardView car={cars[0]} onReset={resetGarage} />;
+  // return <DashboardView/>;
 }

@@ -2,19 +2,18 @@ import { useState } from 'react';
 import { Input } from '../../shared/ui/Input';
 import { Button } from '../../shared/ui/Button';
 import { Combobox } from '../../shared/ui/Combobox';
-import { useVehicleCatalog } from './useVehicleCatalog';
+import { useVehicleCatalog } from './hook/useVehicleCatalog';
+import { useAddVehicle } from './hook/useAddVehicle';
 
-interface OnboardingViewProps {
-  onCarSubmit: (plate: string, brand: string) => void;
-}
 
-export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
+export function OnboardingView() {
   const [plate, setPlate] = useState('');
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [error, setError] = useState('');
 
   const { brands, getModelsForBrand, isLoading } = useVehicleCatalog();
+  const { addCar } = useAddVehicle();
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -31,7 +30,7 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
       return;
     }
 
-    onCarSubmit(plate, `${brand.trim()} ${model.trim()}`);
+    addCar(plate, brand.trim(), model.trim());
   };
 
   return (
