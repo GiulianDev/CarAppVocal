@@ -29,7 +29,7 @@ export function Combobox({ label, value, onChange, options, placeholder, disable
 
   return (
     <div className="flex flex-col gap-1.5 w-full relative" ref={wrapperRef}>
-      <label className="text-[11px] font-medium uppercase tracking-wider text-slate-400/80">
+      <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
         {label}
       </label>
       
@@ -39,7 +39,7 @@ export function Combobox({ label, value, onChange, options, placeholder, disable
           value={value}
           disabled={disabled}
           placeholder={placeholder}
-          className={`w-full p-3 pr-10 rounded-lg border border-slate-800 bg-slate-900/50 text-white text-sm outline-none placeholder:text-slate-600 focus:border-slate-600 focus:bg-slate-900 transition-all duration-150 ${
+          className={`w-full px-3.5 py-2.5 pr-10 rounded-lg border border-zinc-800 bg-zinc-950/40 backdrop-blur-sm text-zinc-100 text-sm outline-none placeholder:text-zinc-600 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200 ${
             disabled ? 'opacity-40 cursor-not-allowed' : ''
           }`}
           onChange={(e) => {
@@ -49,21 +49,20 @@ export function Combobox({ label, value, onChange, options, placeholder, disable
           onFocus={() => !disabled && setIsOpen(true)}
         />
         
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 transition-transform duration-150"
-             style={{ transform: `translateY(-50%) rotate(${isOpen && !disabled ? '180deg' : '0deg'})` }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className={`transition-transform duration-200 ${isOpen && !disabled ? 'rotate-180 text-indigo-400' : ''}`}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </div>
       </div>
 
       {isOpen && !disabled && (
-        <ul className="absolute top-[103%] left-0 w-full bg-slate-900 border border-slate-800 rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.5)] max-h-48 overflow-y-auto z-50 custom-scrollbar p-1">
+        <ul className="absolute top-[calc(100%+6px)] left-0 w-full bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/80 rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.5)] max-h-52 overflow-y-auto z-50 custom-scrollbar p-1 animate-in fade-in slide-in-from-top-2 duration-150">
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option) => (
               <li
                 key={option}
-                className="p-2.5 text-sm text-slate-300 hover:bg-slate-800 hover:text-white rounded-md cursor-pointer transition-colors"
+                className="px-3 py-2 text-sm text-zinc-300 hover:bg-indigo-600 hover:text-white rounded-md cursor-pointer transition-colors"
                 onClick={() => {
                   onChange(option);
                   setIsOpen(false);
@@ -73,8 +72,8 @@ export function Combobox({ label, value, onChange, options, placeholder, disable
               </li>
             ))
           ) : (
-            <li className="p-2.5 text-xs text-slate-500 italic">
-              Nessun risultato per "{value}"
+            <li className="px-3 py-2 text-sm text-zinc-500 italic">
+              Nessun risultato.
             </li>
           )}
         </ul>

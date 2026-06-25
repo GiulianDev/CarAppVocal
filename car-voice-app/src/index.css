@@ -1,9 +1,8 @@
 @import "tailwindcss";
 
-/* Scrollbar Personalizzata per un look Premium */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -11,16 +10,15 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #334155; /* slate-700 */
-  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.2); /* indigo-500 con opacità */
+  border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #475569; /* slate-600 */
+  background: rgba(139, 92, 246, 0.4); /* violet-500 con opacità */
 }
 
-/* Supporto per Firefox */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+  scrollbar-color: rgba(99, 102, 241, 0.2) transparent;
 }
