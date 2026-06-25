@@ -4,6 +4,8 @@ import type { Car } from '../types/car';
 interface CarContextType {
   cars: Car[];
   isLoading: boolean;
+  isAdding: boolean;          // 👈 Nuovo: Stato UI globale
+  setIsAdding: (val: boolean) => void; // 👈 Nuovo: Azione UI globale
   addCar: (plate: string, brand: string, model: string) => void;
   deleteCar: (id: string) => void;
   resetGarage: () => void;
@@ -14,6 +16,7 @@ const CarContext = createContext<CarContextType | undefined>(undefined);
 export const CarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cars, setCars] = useState<Car[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
 
   // 💡 FUTURO: Qui inietterai lo stato dell'utente di Firebase
   // const { user } = useAuth(); 
@@ -23,6 +26,7 @@ export const CarProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const saved = localStorage.getItem('carvoice_cars');
     setCars(saved ? JSON.parse(saved) : []);
     setIsLoading(false);
+    setIsAdding(false);
     
     /* 💡 FUTURO CON FIREBASE & FIRESTORE:
     if (user) {
@@ -49,6 +53,7 @@ export const CarProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedCars = [...cars, newCar];
     setCars(updatedCars);
     localStorage.setItem('carvoice_cars', JSON.stringify(updatedCars));
+    setIsAdding(false);
     console.log('Vehicle added...')
 
     /* 💡 FUTURO CON FIRESTORE:
@@ -74,6 +79,7 @@ export const CarProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const resetGarage = () => {
     setCars([]); // Svuota lo stato di React
     localStorage.removeItem('carvoice_cars'); // Elimina la chiave dal LocalStorage
+    setIsAdding(false);
 
     /* 💡 FUTURO CON FIRESTORE:
     if (user) {
@@ -83,7 +89,7 @@ export const CarProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <CarContext.Provider value={{ cars, isLoading, addCar, deleteCar, resetGarage }}>
+    <CarContext.Provider value={{ cars, isLoading, isAdding, setIsAdding, addCar, deleteCar, resetGarage }}>
       {children}
     </CarContext.Provider>
   );

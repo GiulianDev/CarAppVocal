@@ -7,17 +7,23 @@ interface VehicleDetailViewProps {
 }
 
 export function VehicleDetailView({ car }: VehicleDetailViewProps) {
-  const { deleteCar } = useCarContext();
+  // Estraiamo l'azione dal context globale
+  const { deleteCar, setIsAdding } = useCarContext();
 
   return (
-    // Rimossi i min-h-screen, i background e i div per la luce. Rimane solo la Card!
-    <div className="w-full max-w-md p-6 sm:p-8 bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-full">
+    <div className="w-full max-w-md p-6 sm:p-8 bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
       
       <div className="flex justify-between items-center mb-6">
         <span className="bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full text-xs font-semibold tracking-wide border border-indigo-500/20">
           Veicolo Attivo
         </span>
-        <div className="w-auto">
+        
+        <div className="flex items-center gap-2 w-auto">
+          {/* Modifica lo stato globale per andare in modalità inserimento */}
+          <Button variant="primary" onClick={() => setIsAdding(true)}>
+            <span className="mr-1.5 font-bold">+</span> Auto
+          </Button>
+
           <Button 
             variant="danger" 
             onClick={() => {
@@ -42,7 +48,7 @@ export function VehicleDetailView({ car }: VehicleDetailViewProps) {
 
       <div className="border-t border-zinc-800/60 my-6" />
 
-      <div className="bg-[#0b0b12]/60 border border-zinc-800/80 p-5 rounded-xl text-center backdrop-blur-sm group hover:border-indigo-500/30 transition-colors duration-300">
+      <div className="bg-[#0b0b12]/60 border border-zinc-800/80 p-5 rounded-xl text-center backdrop-blur-sm">
         <p className="font-semibold text-zinc-200 flex items-center justify-center gap-2">
           <span>🎙️</span> Prossimo Step: Comando Vocale
         </p>

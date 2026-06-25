@@ -1,25 +1,31 @@
 import { AddVehicleView } from './features/addVehicle/AddVehicleView';
 import { VehicleDetailView } from './features/vehicleDetail/VehicleDetailView';
 import { VehiclesDashboardView } from './features/vehiclesDashboard/VehiclesDashboardView';
-import { useCarsQuery } from './shared/hooks/useCarsQuery';
+import { useCarContext } from './shared/context/CarContext';
 
 export default function App() {
-  const { cars, isLoading } = useCarsQuery();
+  // Peschiamo tutto dal Context globale
+  const { cars, isLoading, isAdding } = useCarContext();
 
-  // Funzione helper per renderizzare il contenuto corretto
   const renderContent = () => {
     if (isLoading) {
       return (
         <div className="flex flex-col items-center justify-center gap-4">
           <div className="w-8 h-8 border-2 border-indigo-500/20 border-t-indigo-400 rounded-full animate-spin"></div>
-          <p className="text-zinc-400 text-sm tracking-wide font-medium animate-pulse">
-            Caricamento garage...
-          </p>
+          <p className="text-zinc-400 text-sm tracking-wide font-medium animate-pulse">Caricamento garage...</p>
         </div>
       );
     }
-    if (cars.length === 0) return <AddVehicleView />;
-    if (cars.length === 1) return <VehicleDetailView car={cars[0]} />;
+
+    // Se non ci sono auto O se l'utente ha attivato il flag di aggiunta, mostra l'onboarding
+    if (cars.length === 0 || isAdding) {
+      return <AddVehicleView />; // 👈 ZERO PROPS, completamente indipendente
+    }
+
+    if (cars.length === 1) {
+      return <VehicleDetailView car={cars[0]} />; // 👈 Passiamo solo l'entità di business
+    }
+
     return <VehiclesDashboardView cars={cars} />;
   };
 
