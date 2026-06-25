@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-
+import { Combobox } from '../../components/ui/Combobox';
+import { fetchOnlineCars } from '../../data/cars'; // Importiamo la funzione online
 
 interface OnboardingViewProps {
   onCarSubmit: (plate: string, brand: string) => void;
@@ -10,7 +11,27 @@ interface OnboardingViewProps {
 export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
   const [plate, setPlate] = useState('');
   const [brand, setBrand] = useState('');
+  const [model, setModel] = useState('');
   const [error, setError] = useState('');
+
+  // Stati per i dati scaricati online
+  const [carBrands, setCarBrands] = useState<string[]>([]);
+  const [carModelsMap, setCarModelsMap] = useState<Record<string, string[]>>({});
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // Scarica i dati al montaggio del componente
+  useEffect(() => {
+    async function loadCars() {
+      const data = await fetchOnlineCars();
+      setCarBrands(data.brands);
+      setCarModelsMap(data.modelsMap);
+      setIsLoadingData(false);
+    }
+    loadCars();
+  }, []);
+
+  // Recupera i modelli in base alla marca selezionata
+  const availableModels = carModelsMap[brand] || [];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,11 +44,16 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
     }
 
     if (!brand.trim()) {
-      setError('Inserisci la marca e il modello');
+      setError('Inserisci la Marca');
       return;
     }
 
-    onCarSubmit(plate, brand);
+    if (!model.trim()) {
+      setError('Inserisci il Modello');
+      return;
+    }
+
+    onCarSubmit(plate, `${brand.trim()} ${model.trim()}`);
   };
 
   return (
@@ -37,28 +63,50 @@ export function OnboardingView({ onCarSubmit }: OnboardingViewProps) {
           Benvenuto in <span className="text-blue-500">CarVoice AI</span>
         </h1>
         <p className="text-sm text-slate-400 mb-6">
-          Per iniziare a tracciare i tuoi lavori, configura la tua prima auto.
+          Configura la tua auto per iniziare.
         </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <Input
-            label="Targa dell'auto"
-            placeholder="es. AA123BB"
-            maxLength={7}
-            value={plate}
-            onChange={(e) => setPlate(e.target.value)}
-          />
-          <Input
-            label="Marca e Modello"
-            placeholder="es. Fiat Panda 1.2"
-            value={brand}
-            onChange={(e) => setBrand(e.target.value)}
-          />
+        {isLoadingData ? (
+          <div className="text-center py-8 text-slate-400 animate-pulse">
+            Caricamento listino auto mondiale...
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <Input
+              label="Targa dell'auto"
+              placeholder="es. AA123BB"
+              maxLength={7}
+              value={plate}
+              onChange={(e) => setPlate(e.target.value)}
+            />
+            
+            <div className="flex flex-col gap-5 bg-slate-950 p-4 rounded-xl border border-slate-800">
+              <Combobox
+                label="Marca"
+                placeholder="Seleziona o digita..."
+                value={brand}
+                onChange={(value) => {
+                  setBrand(value);
+                  setModel(''); 
+                }}
+                options={carBrands}
+              />
 
-          {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
+              <Combobox
+                label="Modello"
+                placeholder="Seleziona o digita..."
+                value={model}
+                onChange={setModel}
+                options={availableModels}
+                disabled={!brand} 
+              />
+            </div>
 
-          <Button type="submit">Configura Auto</Button>
-        </form>
+            {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
+
+            <Button type="submit">Aggiungi al Garage</Button>
+          </form>
+        )}
       </div>
     </div>
   );
