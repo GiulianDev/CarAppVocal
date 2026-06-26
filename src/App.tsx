@@ -4,28 +4,32 @@ import { VehiclesDashboardView } from './features/vehiclesDashboard/VehiclesDash
 import { useCarContext } from './shared/context/CarContext';
 
 export default function App() {
-  const { cars, isLoading, isAdding } = useCarContext();
+  // const { cars, isLoading, isAdding } = useCarContext();
 
   const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center gap-4">
-          {/* Spinner aggiornato ai toni blu */}
-          <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-          <p className="text-slate-400 text-sm tracking-wide font-medium animate-pulse">Caricamento garage...</p>
-        </div>
-      );
-    }
 
-    if (cars.length === 0 || isAdding) {
-      return <AddVehicleView />; 
-    }
+    return <AddVehicleView />; 
 
-    if (cars.length === 1) {
-      return <VehicleDetailView car={cars[0]} />; 
-    }
 
-    return <VehiclesDashboardView cars={cars} />;
+  //   if (isLoading) {
+  //     return (
+  //       <div className="flex flex-col items-center justify-center gap-4">
+  //         {/* Spinner aggiornato ai toni blu */}
+  //         <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+  //         <p className="text-slate-400 text-sm tracking-wide font-medium animate-pulse">Caricamento garage...</p>
+  //       </div>
+  //     );
+  //   }
+
+  //   if (cars.length === 0 || isAdding) {
+  //     return <AddVehicleView />; 
+  //   }
+
+  //   if (cars.length === 1) {
+  //     return <VehicleDetailView car={cars[0]} />; 
+  //   }
+
+  //   return <VehiclesDashboardView cars={cars} />;
   };
 
   return (
