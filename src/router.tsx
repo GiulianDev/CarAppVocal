@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom';
 import App from './App';
 import { AddVehicleView } from './features/addVehicle/AddVehicleView';
 import { VehicleDetailView } from './features/vehicleDetail/VehicleDetailView';
+import { GarageView } from './features/Garage/GarageView';
 
 /**
  * DEFINIZIONE CENTRALIZZATA DELLE ROUTE
@@ -44,6 +45,11 @@ export const routes = [
         element: <AddVehicleView />,
         handle: { title: 'Aggiunngi veicolo' },
       },
+      {
+        path: '/garage/',
+        element: <GarageView />,
+        handle: { title: 'Garage' },
+      }
     ],
   },
 ];

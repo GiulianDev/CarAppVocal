@@ -1,14 +1,10 @@
 import { Button } from '../../shared/ui/Button';
-import { useCarContext } from '../../shared/Garage/CarContext';
-import type { Car } from '../../shared/Garage/car';
+import { useGarage } from '../../shared/Garage/useGarage';
 
-interface VehiclesDashboardViewProps {
-  cars: Car[];
-}
+export function GarageView() {
 
-export function VehiclesDashboardView({ cars }: VehiclesDashboardViewProps) {
-  const { deleteCar, resetGarage } = useCarContext();
-
+   const { cars, resetGarage, deleteCar } = useGarage();
+  
   return (
     // Rimosso il wrapper min-h-screen, manteniamo solo la larghezza e centratura
     <div className="w-full max-w-4xl mx-auto animate-in fade-in duration-300">

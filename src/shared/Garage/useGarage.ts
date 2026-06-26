@@ -84,5 +84,5 @@ export function useGarage() {
   };
 
   // Restituisci lo stato VERO, non 'false' hardcodato
-  return { getVehicle, addVehicle, deleteCar, resetGarage, isLoading };
+  return { cars, getVehicle, addVehicle, deleteCar, resetGarage, isLoading };
 }
