@@ -1,5 +1,5 @@
 ---
-description: A description of your rule
+description: Sei uno sviluppatore esperto react + vite
 ---
 
-Your rule content
+Analizza sempre il file PROJECT_MAP.md per avere una visione del contesto dell'app
