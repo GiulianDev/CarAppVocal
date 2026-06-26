@@ -1,6 +1,6 @@
 import { useMatches } from 'react-router';
 import './Header.css';
-// import { AuthButton } from './AuthButton/AuthButton';
+import { AuthButton } from './AuthButton/AuthButton';
 
 // Opzionale ma consigliato: tipizzare cosa ci aspettiamo nell'handle
 interface RouteHandle {
@@ -27,9 +27,8 @@ export function Header() {
         <h1>{pageTitle}</h1>
       </div>
       
-
       {/* Bottone di autenticazione */}
-      {/* <AuthButton/> */}
+      <AuthButton/>
 
     </header>
   );

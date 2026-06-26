@@ -1,4 +1,4 @@
-import { useAuth } from '../../../shared/contexts/AuthContext';
+import { useAuth } from '../../../shared/Auth/AuthContext';
 import './AuthButton.css';
 
 export function AuthButton() {
