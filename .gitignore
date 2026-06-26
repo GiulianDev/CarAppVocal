@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/android/app/src/main/res/drawable-land-hdpi
+/android/app/src/main/res/drawable-land-xhdpi
+/android/app/src/main/res/drawable-port-mdpi
+/android/app/src/main/res
