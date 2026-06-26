@@ -1,6 +1,6 @@
 import { Button } from '../../shared/ui/Button';
-import { useCarContext } from '../../shared/context/CarContext';
-import type { Car } from '../../shared/types/car';
+import { useCarContext } from '../../shared/Garage/CarContext';
+import type { Car } from '../../shared/Garage/car';
 
 interface VehiclesDashboardViewProps {
   cars: Car[];

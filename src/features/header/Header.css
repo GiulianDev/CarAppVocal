@@ -1,0 +1,13 @@
+.header--container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;  
+  >.header--title {
+    width: 70%;
+    h1 {
+      margin: 0; /* Annulla i 20px/32px di margine di index.css per tenerlo centrato */
+      margin-top: 0.5rem; /* Aggiungi un po' di margine sopra per separarlo dal bordo superiore */
+    }
+  }
+}

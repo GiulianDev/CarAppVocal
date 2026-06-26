@@ -33,7 +33,7 @@ export const routes = [
       {
         path: '/detail/:id',
         element: <VehicleDetailView />,
-        handle: { title: 'Dettaglio Holding' },
+        handle: { title: 'Dettaglio veicolo' },
       },
       {
         path: '/detail',
@@ -42,7 +42,7 @@ export const routes = [
       {
         path: '/add-vehicle/',
         element: <AddVehicleView />,
-        handle: { title: 'Add Vehicle Page' },
+        handle: { title: 'Aggiunngi veicolo' },
       },
     ],
   },

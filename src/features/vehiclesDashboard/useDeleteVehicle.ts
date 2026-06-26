@@ -1,4 +1,4 @@
-import { useCarContext } from "../../shared/context/CarContext";
+import { useCarContext } from "../../shared/Garage/CarContext";
 
 export function useDeleteVehicle() {
   const { deleteCar } = useCarContext();

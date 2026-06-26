@@ -1,6 +1,6 @@
 // useGetVehicle.ts
 import { useEffect, useState } from "react";
-import type { Car } from "../types/car";
+import type { Car } from "./car";
 
 export function useGarage() {
 

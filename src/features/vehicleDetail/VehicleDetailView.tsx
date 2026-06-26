@@ -1,12 +1,13 @@
 import { Button } from '../../shared/ui/Button';
-import { useCarContext } from '../../shared/context/CarContext';
-import type { Car } from '../../shared/types/car';
-import { useGarage } from '../../shared/hook/useGarage';
-import { Navigate, useParams } from 'react-router-dom';
+import { useCarContext } from '../../shared/Garage/CarContext';
+import type { Car } from '../../shared/Garage/car';
+import { useGarage } from '../../shared/Garage/useGarage';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
 export function VehicleDetailView() {
 
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const { getVehicle, isLoading } = useGarage();
 
@@ -22,6 +23,9 @@ export function VehicleDetailView() {
 
   // Ora recuperiamo l'auto (senza scatenare re-render)
   const car = getVehicle(id);
+  const goToAddVehicle = () => {
+    navigate(`/add-vehicle/`);
+  }
 
   return (
     <div className="w-full max-w-md p-6 sm:p-8 bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
@@ -37,7 +41,7 @@ export function VehicleDetailView() {
             
             <div className="flex items-center gap-2 w-auto">
               {/* Modifica lo stato globale per andare in modalità inserimento */}
-              <Button variant="primary">
+              <Button variant="primary" onClick={goToAddVehicle}>
                 <span className="mr-1.5 font-bold">+</span> Auto
               </Button>
 

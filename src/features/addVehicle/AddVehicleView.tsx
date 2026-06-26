@@ -3,8 +3,8 @@ import { Input } from '../../shared/ui/Input';
 import { Button } from '../../shared/ui/Button';
 import { Combobox } from '../../shared/ui/Combobox';
 import { useVehicleCatalog } from './hook/useVehicleCatalog';
-import { useAddVehicle } from './hook/useAddVehicle';
 import { useNavigate } from 'react-router-dom';
+import { useGarage } from '../../shared/Garage/useGarage';
 
 export function AddVehicleView() {
   
@@ -17,7 +17,7 @@ export function AddVehicleView() {
   
   const { brands, getModelsForBrand, isLoading } = useVehicleCatalog();
 
-  const { addVehicle } = useAddVehicle();
+  const { addVehicle } = useGarage();
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
