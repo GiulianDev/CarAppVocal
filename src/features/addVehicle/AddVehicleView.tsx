@@ -3,18 +3,18 @@ import { Input } from '../../shared/ui/Input';
 import { Button } from '../../shared/ui/Button';
 import { Combobox } from '../../shared/ui/Combobox';
 import { useVehicleCatalog } from './hook/useVehicleCatalog';
-import { useAddVehicle } from './hook/useAddVehicle';
-import { useCarContext } from '../../shared/context/CarContext';
+import { useAddCar } from './hook/useAddVehicle';
 
 export function AddVehicleView() {
+  
   const [plate, setPlate] = useState('');
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [error, setError] = useState('');
 
   const { brands, getModelsForBrand, isLoading } = useVehicleCatalog();
-  const { addCar } = useAddVehicle();
-  const { setIsAdding, cars } = useCarContext();
+
+  const { cars, addCar, setIsAdding } = useAddCar();
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
