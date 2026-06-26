@@ -1,10 +1,16 @@
 import { Button } from '../../shared/ui/Button';
 import { useGarage } from '../../shared/Garage/useGarage';
+import { useNavigate } from 'react-router-dom';
 
 export function GarageView() {
 
-   const { cars, resetGarage, deleteCar } = useGarage();
+  const navigate = useNavigate();
   
+  const { cars, resetGarage, deleteCar } = useGarage();
+
+  const handleGoToDetail = (id: string) => {
+    navigate(`/detail/${id}`);
+  }  
   return (
     // Rimosso il wrapper min-h-screen, manteniamo solo la larghezza e centratura
     <div className="w-full max-w-4xl mx-auto animate-in fade-in duration-300">
@@ -35,6 +41,7 @@ export function GarageView() {
           <div 
             key={car.id} 
             className="bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/60 rounded-xl p-5 flex flex-col justify-between hover:border-zinc-700/60 transition-all duration-200"
+            onClick={() => handleGoToDetail(car.id)}
           >
             <div className="flex items-start justify-between gap-2">
               <h3 className="font-bold text-lg text-zinc-200 tracking-tight">
@@ -49,13 +56,15 @@ export function GarageView() {
             <div className="mt-6 pt-4 border-t border-zinc-800/40 flex justify-end">
               <Button
                 variant="danger"
-                onClick={() => {
+                onClick={(e) => { // 1. Ricevi l'evento 'e'
+                  e.stopPropagation(); // 2. FERMA LA PROPAGAZIONE al genitore!
+                  
                   if (confirm(`Vuoi eliminare ${car.brand}?`)) {
                     deleteCar(car.id);
                   }
                 }}
               >
-                Elimina Veicolo
+                Elimina
               </Button>
             </div>
           </div>

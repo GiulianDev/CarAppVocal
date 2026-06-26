@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import type { Car } from "./car";
 
+const STORAGE_KEY = 'cars';
+
 export function useGarage() {
 
   const [cars, setCars] = useState<Car[]>([]);
@@ -40,7 +42,7 @@ export function useGarage() {
       };
       const updated = [...cars, newCar];
       setCars(updated);
-      localStorage.setItem('cars', JSON.stringify(updated));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       console.log('Add vehicle success: ', newCar);
       return newCar;
     } finally {
@@ -61,7 +63,7 @@ export function useGarage() {
   const deleteCar = (id: string) => {
     const updatedCars = cars.filter(car => car.id !== id);
     setCars(updatedCars);
-    localStorage.setItem('carvoice_cars', JSON.stringify(updatedCars));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCars));
     setIsLoading(false);
 
     /* 💡 FUTURO CON FIRESTORE:
@@ -73,7 +75,7 @@ export function useGarage() {
 
   const resetGarage = () => {
     setCars([]); // Svuota lo stato di React
-    localStorage.removeItem('carvoice_cars'); // Elimina la chiave dal LocalStorage
+    localStorage.removeItem(STORAGE_KEY); // Elimina la chiave dal LocalStorage
     setIsLoading(false);
 
     /* 💡 FUTURO CON FIRESTORE:
