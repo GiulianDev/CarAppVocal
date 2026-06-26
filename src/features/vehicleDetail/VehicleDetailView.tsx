@@ -2,11 +2,11 @@ import { Button } from '../../shared/ui/Button';
 import { useCarContext } from '../../shared/context/CarContext';
 import type { Car } from '../../shared/types/car';
 
-interface VehicleDetailViewProps {
-  car: Car;
-}
+export function VehicleDetailView() {
 
-export function VehicleDetailView({ car }: VehicleDetailViewProps) {
+
+
+
   // Estraiamo l'azione dal context globale
   const { deleteCar, setIsAdding } = useCarContext();
 

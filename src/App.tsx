@@ -1,14 +1,14 @@
-import { AddVehicleView } from './features/addVehicle/AddVehicleView';
-import { VehicleDetailView } from './features/vehicleDetail/VehicleDetailView';
-import { VehiclesDashboardView } from './features/vehiclesDashboard/VehiclesDashboardView';
-import { useCarContext } from './shared/context/CarContext';
+import { Outlet } from 'react-router';
 
 export default function App() {
+
+  // const location = useLocation();
+
   // const { cars, isLoading, isAdding } = useCarContext();
 
-  const renderContent = () => {
+  // const renderContent = () => {
 
-    return <AddVehicleView />; 
+  //   return <AddVehicleView />; 
 
 
   //   if (isLoading) {
@@ -30,10 +30,9 @@ export default function App() {
   //   }
 
   //   return <VehiclesDashboardView cars={cars} />;
-  };
+  // };
 
   return (
-    // 🌌 WRAPPER GLOBALE: Sfondo slate-950 (blu notte scuro)
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 relative overflow-x-hidden flex flex-col selection:bg-blue-500/30 selection:text-white">
       
       {/* ✨ EFFETTI LUCE RESPONSIVI */}
@@ -49,7 +48,10 @@ export default function App() {
 
       {/* 📦 AREA CONTENUTO */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 relative z-10 w-full h-full">
-        {renderContent()}
+        
+        {/* OUTLET - Qui il router renderizza le rotte figlie */}
+        <Outlet />
+        
       </main>
 
     </div>

@@ -3,7 +3,8 @@ import { Input } from '../../shared/ui/Input';
 import { Button } from '../../shared/ui/Button';
 import { Combobox } from '../../shared/ui/Combobox';
 import { useVehicleCatalog } from './hook/useVehicleCatalog';
-import { useAddCar } from './hook/useAddVehicle';
+import { useAddVehicle } from './hook/useAddVehicle';
+import { useNavigate } from 'react-router-dom';
 
 export function AddVehicleView() {
   
@@ -12,9 +13,11 @@ export function AddVehicleView() {
   const [model, setModel] = useState('');
   const [error, setError] = useState('');
 
+  const navigate = useNavigate();
+  
   const { brands, getModelsForBrand, isLoading } = useVehicleCatalog();
 
-  const { cars, addCar, setIsAdding } = useAddCar();
+  const { addVehicle } = useAddVehicle();
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -31,7 +34,10 @@ export function AddVehicleView() {
       return;
     }
 
-    addCar(plate, brand.trim(), model.trim());
+    const newCar = addVehicle(plate, brand.trim(), model.trim());
+    console.log('id: ', newCar.id);
+    // Redirect alla pagina di dettaglio
+    navigate(`/detail/${newCar.id}`);
   };
 
   return (
@@ -96,11 +102,11 @@ export function AddVehicleView() {
           <div className="mt-2 flex flex-col gap-3">
             <Button type="submit">Salva nel Garage</Button>
             
-            {cars.length > 0 && (
-              <Button variant="danger" type="button" onClick={() => setIsAdding(false)}>
+            {/* {cars.length > 0 && (
+              <Button variant="danger" type="button">
                 Annulla
               </Button>
-            )}
+            )} */}
           </div>
         </form>    
       )}

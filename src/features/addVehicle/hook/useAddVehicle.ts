@@ -1,32 +1,34 @@
-// src/hooks/useGarage.ts
 import { useState, useEffect } from 'react';
 import type { Car } from '../../../shared/types/car';
 
-export function useAddCar() {
-  
-  const [cars, setCars] = useState<Car[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
+export function useAddVehicle() {
 
-  // Carica i dati all'avvio
+  const [cars, setCars] = useState<Car[]>([]);
+  const [isAdding, setIsAdding] = useState(true);
+
   useEffect(() => {
     const saved = localStorage.getItem('cars');
     if (saved) setCars(JSON.parse(saved));
-    setIsLoading(false);
+    setIsAdding(false);
   }, []);
 
-  const addCar = (plate: string, brand: string, model: string) => {
-    const newCar: Car = {
-      id: crypto.randomUUID(),
-      plate: plate.toUpperCase(),
-      brand: `${brand} ${model}`,
-      addedAt: new Date().toISOString(),
-    };
-    const updated = [...cars, newCar];
-    setCars(updated);
-    localStorage.setItem('cars', JSON.stringify(updated));
-    setIsAdding(false);
+  const addVehicle = (plate: string, brand: string, model: string) => {    
+    try {
+      const newCar: Car = {
+        id: crypto.randomUUID(),
+        plate: plate.toUpperCase(),
+        brand: `${brand} ${model}`,
+        addedAt: new Date().toISOString(),
+      };
+      const updated = [...cars, newCar];
+      setCars(updated);
+      localStorage.setItem('cars', JSON.stringify(updated));
+      console.log('Add vehicle success: ', newCar);
+      return newCar;
+    } finally {
+      setIsAdding(false); // Termina il processo (anche in caso di errore)
+    }
   };
 
-  return { cars, isLoading, isAdding, setIsAdding, addCar };
+  return { cars, isAdding, setIsAdding, addVehicle }; 
 }
