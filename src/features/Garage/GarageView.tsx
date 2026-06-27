@@ -1,12 +1,24 @@
 import { Button } from '../../shared/ui/Button';
 import { useGarage } from '../../shared/Garage/useGarage';
 import { useNavigate } from 'react-router-dom';
+import { useGarageVoiceFlow } from './hook/useGarageVoiceFlow';
 
 export function GarageView() {
 
   const navigate = useNavigate();
   
-  const { cars, resetGarage, deleteCar } = useGarage();
+  const { cars, resetGarage, deleteVehicle } = useGarage();
+
+    // 3. Orchestrazione Vocale (Il Cervello NLP)
+    useGarageVoiceFlow({
+      cars: cars,
+      actions: { deleteVehicle, resetGarage }
+    });
+
+  const handleResetGarage = () => {
+    console.log('reset garage...');
+    resetGarage();
+  } 
 
   const handleGoToDetail = (id: string) => {
     navigate(`/detail/${id}`);
@@ -36,7 +48,7 @@ export function GarageView() {
             variant="danger"
             onClick={() => {
               if (confirm("Sei sicuro di voler svuotare interamente il tuo garage?")) {
-                resetGarage();
+                handleResetGarage();
               }
             }}
           >
@@ -70,7 +82,7 @@ export function GarageView() {
                   e.stopPropagation(); // 2. FERMA LA PROPAGAZIONE al genitore!
                   
                   if (confirm(`Vuoi eliminare ${car.brand}?`)) {
-                    deleteCar(car.id);
+                    deleteVehicle(car.id);
                   }
                 }}
               >

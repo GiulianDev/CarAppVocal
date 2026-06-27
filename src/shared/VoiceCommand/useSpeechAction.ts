@@ -1,6 +1,6 @@
 // hook/useSpeechAction.ts
 import { useRef } from 'react';
-import { useVoiceContext } from '../../../shared/VoiceCommand/VoiceContext';
+import { useVoiceContext } from './VoiceContext';
 
 export function useSpeechAction() {
   const { startListening } = useVoiceContext();

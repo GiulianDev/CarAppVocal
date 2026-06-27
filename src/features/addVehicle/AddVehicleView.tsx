@@ -2,8 +2,8 @@ import { Input } from '../../shared/ui/Input';
 import { Button } from '../../shared/ui/Button';
 import { Combobox } from '../../shared/ui/Combobox';
 import { useVehicleCatalog } from './hook/useVehicleCatalog';
-import { useVehicleForm } from './hook/useVehicleForm';
-import { useVehicleVoiceFlow } from './hook/useVehicleVoiceFlow';
+import { useVehicleForm } from './hook/useAddVehicleForm';
+import { useAddVehicleVoiceFlow } from './hook/useAddVehicleVoiceFlow';
 
 export function AddVehicleView() {
   // 1. Dati dal catalogo
@@ -18,7 +18,7 @@ export function AddVehicleView() {
   } = useVehicleForm();
 
   // 3. Orchestrazione Vocale (Il Cervello NLP)
-  useVehicleVoiceFlow({
+  useAddVehicleVoiceFlow({
     catalog: { brands, getModelsForBrand },
     form: { plate, brand, model },
     actions: { setPlate, setBrand, setModel, performSave }

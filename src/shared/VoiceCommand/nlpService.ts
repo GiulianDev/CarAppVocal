@@ -73,6 +73,18 @@ export async function initNlp() {
   nlp.addDocument('it', 'annulla', CANCEL);
   nlp.addDocument('it', 'fermati', CANCEL);
 
+
+    // NUOVI INTENTI DI ELIMINAZIONE DI TUTTE LE AUTO
+    const DELETE_ALL = 'intent.delete_all';
+    nlp.addDocument('it', 'elimina tutto', DELETE_ALL);
+    nlp.addDocument('it', 'elimina tutte le auto', DELETE_ALL);
+    nlp.addDocument('it', 'cancella tutto', DELETE_ALL);
+    nlp.addDocument('it', 'cancella tutte le auto', DELETE_ALL);
+    nlp.addDocument('it', 'svuota garage', DELETE_ALL);
+    nlp.addDocument('it', 'pulisci garage', DELETE_ALL);
+    nlp.addDocument('it', 'elimina garage', DELETE_ALL);
+
+
   // ==========================================
   // 3. TRAINING DEL MODELLO
   // ==========================================

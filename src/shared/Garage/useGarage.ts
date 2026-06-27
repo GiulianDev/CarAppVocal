@@ -60,7 +60,7 @@ export function useGarage() {
   };
 
 
-  const deleteCar = (id: string) => {
+  const deleteVehicle = (id: string) => {
     const updatedCars = cars.filter(car => car.id !== id);
     setCars(updatedCars);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCars));
@@ -86,5 +86,5 @@ export function useGarage() {
   };
 
   // Restituisci lo stato VERO, non 'false' hardcodato
-  return { cars, getVehicle, addVehicle, deleteCar, resetGarage, isLoading };
+  return { cars, getVehicle, addVehicle, deleteVehicle, resetGarage, isLoading };
 }

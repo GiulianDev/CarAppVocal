@@ -1,9 +1,9 @@
 // hook/useVehicleVoiceFlow.ts
 import { useState, useEffect } from 'react';
-import { useSpeechAction } from './useSpeechAction';
+import { useSpeechAction } from '../../../shared/VoiceCommand/useSpeechAction';
 import { useVoiceContext } from '../../../shared/VoiceCommand/VoiceContext';
 
-interface VoiceFlowProps {
+interface AddVehicleVoiceFlowProps {
   catalog: {
     brands: string[];
     getModelsForBrand: (brand: string) => string[];
@@ -23,7 +23,7 @@ interface VoiceFlowProps {
 
 type WaitState = 'brand' | 'confirm_brand' | 'model' | 'confirm_model' | 'plate' | 'confirm_save' | null;
 
-export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) {
+export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoiceFlowProps) {
   const [waitingFor, setWaitingFor] = useState<WaitState>(null);
   const [pendingValue, setPendingValue] = useState<string | null>(null);
   
