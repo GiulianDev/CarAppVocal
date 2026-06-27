@@ -11,6 +11,11 @@ export function GarageView() {
   const handleGoToDetail = (id: string) => {
     navigate(`/detail/${id}`);
   }  
+  const handleGoToAddVehicle = () => {
+    console.log('go to add vehicle...');
+    navigate('/add-vehicle/');
+  } 
+
   return (
     // Rimosso il wrapper min-h-screen, manteniamo solo la larghezza e centratura
     <div className="w-full max-w-4xl mx-auto animate-in fade-in duration-300">
@@ -21,7 +26,12 @@ export function GarageView() {
           <h1 className="text-3xl font-bold tracking-tight text-zinc-100">La tua Flotta</h1>
           <p className="text-sm text-zinc-400 mt-1">Gestisci i tuoi {cars.length} veicoli configurati</p>
         </div>
-        <div className="w-auto">
+
+
+        <div className="w-auto flex gap-4">
+          <Button onClick={() => handleGoToAddVehicle()}>
+            Aggiungi Veicolo
+          </Button>
           <Button
             variant="danger"
             onClick={() => {
