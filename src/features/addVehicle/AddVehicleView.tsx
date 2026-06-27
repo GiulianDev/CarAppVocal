@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '../../shared/ui/Input';
 import { Button } from '../../shared/ui/Button';
 import { Combobox } from '../../shared/ui/Combobox';
 import { useVehicleCatalog } from './hook/useVehicleCatalog';
 import { useNavigate } from 'react-router-dom';
 import { useGarage } from '../../shared/Garage/useGarage';
+import { useVoiceContext } from '../../shared/VoiceCommand/VoiceContext';
+// IMPORTIAMO IL CONTEXT
 
 export function AddVehicleView() {
   
@@ -14,11 +16,66 @@ export function AddVehicleView() {
   const [error, setError] = useState('');
 
   const navigate = useNavigate();
-  
   const { brands, getModelsForBrand, isLoading } = useVehicleCatalog();
-
   const { addVehicle } = useGarage();
+  
+  // INIETTIAMO IL CONTEXT
+  const { registerActionHandler } = useVoiceContext();
 
+  // ==========================================
+  // LOGICA DI ASCOLTO VOCALE
+  // ==========================================
+  useEffect(() => {
+    // Ci registriamo come ascoltatori attivi
+    const cleanup = registerActionHandler((nlpResult) => {
+      
+      // Filtriamo solo gli intenti che ci interessano in questa pagina
+      if (nlpResult.intent === 'intent.add_vehicle') {
+        setError(''); // Puliamo eventuali errori precedenti
+
+        // 1. Estraiamo le entità dall'array restituito da NLP.js
+        const extractedPlate = nlpResult.entities.find(e => e.entity === 'plate')?.sourceText;
+        const extractedBrand = nlpResult.entities.find(e => e.entity === 'brand')?.sourceText;
+        const extractedModel = nlpResult.entities.find(e => e.entity === 'model')?.sourceText;
+
+        // 2. Simuliamo l'inserimento dell'utente!
+        
+        if (extractedPlate) {
+          // La Regex NLP ha già validato il formato, ma la mettiamo comunque in maiuscolo
+          setPlate(extractedPlate.toUpperCase());
+        }
+
+        if (extractedBrand) {
+          // Cerchiamo un match nel nostro listino (case-insensitive)
+          const catalogMatch = brands.find(
+            b => b.toLowerCase() === extractedBrand.trim().toLowerCase()
+          );
+          
+          // Se lo troviamo usiamo quello del catalogo (es. "BMW"), 
+          // altrimenti usiamo la stringa vocale raw (veicolo fuori listino)
+          const finalBrand = catalogMatch || extractedBrand.trim();
+          setBrand(finalBrand);
+
+          // Se abbiamo trovato il brand e l'utente ha pronunciato un modello, settiamo anche quello
+          if (extractedModel) {
+            const availableModels = catalogMatch ? getModelsForBrand(catalogMatch) : [];
+            const modelMatch = availableModels.find(
+              m => m.toLowerCase() === extractedModel.trim().toLowerCase()
+            );
+            setModel(modelMatch || extractedModel.trim());
+          }
+        }
+      }
+    });
+
+    // Cleanup fondamentale: quando l'utente cambia pagina (es. va su /garage),
+    // questa pagina smette di ascoltare i comandi vocali.
+    return cleanup;
+  }, [registerActionHandler, brands, getModelsForBrand]);
+
+  // ==========================================
+  // SUBMIT STANDARD (inalterato)
+  // ==========================================
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError('');
@@ -35,8 +92,6 @@ export function AddVehicleView() {
     }
 
     const newCar = addVehicle(plate, brand.trim(), model.trim());
-    console.log('id: ', newCar.id);
-    // Redirect alla pagina di dettaglio
     navigate(`/detail/${newCar.id}`);
   };
 

@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import App from './App';
-import { AddVehicleView } from './features/addVehicle/AddVehicleView';
+import { AddVehicleView } from './features/AddVehicle/AddVehicleView';
 import { VehicleDetailView } from './features/vehicleDetail/VehicleDetailView';
 import { GarageView } from './features/Garage/GarageView';
 

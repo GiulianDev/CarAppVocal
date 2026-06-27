@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router';
 import { Header } from './features/header/Header';
+import { VoiceFab } from './shared/ui/VoiceFab';
 
 export default function App() {
 
@@ -22,13 +23,13 @@ export default function App() {
       
       {/* 📦 AREA CONTENUTO */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 relative z-10 w-full h-full">
-        
-
 
         {/* OUTLET - Qui il router renderizza le rotte figlie */}
         <Outlet />
         
       </main>
+
+      <VoiceFab/>
 
     </div>
   );
