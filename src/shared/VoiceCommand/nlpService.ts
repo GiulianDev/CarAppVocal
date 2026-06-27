@@ -84,6 +84,15 @@ export async function initNlp() {
     nlp.addDocument('it', 'pulisci garage', DELETE_ALL);
     nlp.addDocument('it', 'elimina garage', DELETE_ALL);
 
+    // NUOVO INTENTO: ELIMINAZIONE SINGOLO VEICOLO
+  const DELETE_VEHICLE = 'intent.delete_vehicle';
+  nlp.addDocument('it', 'elimina la %brand%', DELETE_VEHICLE);
+  nlp.addDocument('it', 'elimina %brand%', DELETE_VEHICLE);
+  nlp.addDocument('it', 'cancella auto %brand% %model%', DELETE_VEHICLE);
+  nlp.addDocument('it', 'rimuovi la %model%', DELETE_VEHICLE);
+  nlp.addDocument('it', 'elimina targa %plate%', DELETE_VEHICLE);
+  nlp.addDocument('it', 'togli la mia %brand%', DELETE_VEHICLE);
+  nlp.addDocument('it', 'voglio cancellare la %brand%', DELETE_VEHICLE);
 
   // ==========================================
   // 3. TRAINING DEL MODELLO

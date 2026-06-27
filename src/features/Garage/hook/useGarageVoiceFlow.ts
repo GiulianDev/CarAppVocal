@@ -1,4 +1,3 @@
-// hook/useVehicleVoiceFlow.ts
 import { useState, useEffect } from 'react';
 import { useVoiceContext } from '../../../shared/VoiceCommand/VoiceContext';
 import { useSpeechAction } from '../../../shared/VoiceCommand/useSpeechAction';
@@ -12,10 +11,12 @@ interface GarageVoiceFlowProps {
   };
 }
 
-type WaitState = 'delete' | 'confirm_delete' | 'add' | 'confirm_add' | 'clean' | 'confirm_clean' | null;
+// Stati di attesa per guidare la conversazione
+type WaitState = 'confirm_clean' | 'confirm_delete' | 'delete_disambiguate_plate' | null;
 
 export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
   const [waitingFor, setWaitingFor] = useState<WaitState>(null);
+  // pendingValue ci serve per salvare temporaneamente l'ID dell'auto che stiamo per eliminare
   const [pendingValue, setPendingValue] = useState<string | null>(null);
   
   const { registerActionHandler } = useVoiceContext();
@@ -28,61 +29,133 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
 
   useEffect(() => {
     const cleanup = registerActionHandler((nlpResult) => {
-
       const rawAnswer = nlpResult.utterance.toLowerCase();
-      
-      // 1. Pulizia drastica: rimuoviamo la punteggiatura che le API vocali spesso inseriscono
       const cleanAnswer = rawAnswer.replace(/[.,!?]/g, '').trim();
 
-      // 2. Dizionari di conferma sicuri (nessun problema con le lettere accentate)
       const confirmWords = ['si', 'sì', 'ok', 'certo', 'esatto', 'corretto', 'procedi', 'conferma', 'confermo', 'vai'];
-      const cancelWords = ['no', 'annulla', 'sbagliato', 'errato', 'fermati'];
+      const cancelWords = ['no', 'annulla', 'sbagliato', 'errato', 'fermati', 'ferma'];
 
-      // 3. Dividiamo la frase dell'utente in parole singole
       const wordsArray = cleanAnswer.split(/\s+/);
+      const isConfirm = nlpResult.intent === 'intent.confirm' || confirmWords.includes(cleanAnswer) || wordsArray.some(word => confirmWords.includes(word));
+      const isCancel = nlpResult.intent === 'intent.cancel' || cancelWords.includes(cleanAnswer) || wordsArray.some(word => cancelWords.includes(word));
 
-      // 4. Logica di match robusta: controlliamo l'intento NLP, la frase intera o le singole parole
-      const isConfirm = 
-        nlpResult.intent === 'intent.confirm' || 
-        confirmWords.includes(cleanAnswer) || 
-        wordsArray.some(word => confirmWords.includes(word));
-
-      const isCancel = 
-        nlpResult.intent === 'intent.cancel' || 
-        cancelWords.includes(cleanAnswer) || 
-        wordsArray.some(word => cancelWords.includes(word));
+      // Funzione di utilità per estrarre la targa (stessa regex usata in addVehicle)
+      const extractPlate = (text: string) => {
+        const rawUtteranceCleaned = text.replace(/[\s\-\.,]/g, '').toUpperCase();
+        const plateMatch = rawUtteranceCleaned.match(/[A-Z]{2}\d{3}[A-Z]{2}/);
+        return plateMatch ? plateMatch[0] : null;
+      };
 
       // =======================================================
-      // CASO A: Slot Filling (Stiamo aspettando una risposta)
+      // CASO A: Stiamo aspettando una risposta specifica
       // =======================================================
       if (waitingFor) {
-        console.log('wainting for ', waitingFor);
+        
+        // --- 1. Conferma svuotamento garage ---
+        if (waitingFor === 'confirm_clean') {
+          if (isConfirm) {
+            setWaitingFor(null);
+            actions.resetGarage();
+            speakOnly("Garage svuotato con successo.");
+          } else if (isCancel) {
+            setWaitingFor(null);
+            speakOnly("Nessun problema, il garage è al sicuro.");
+          } else {
+            askAndListen("Non ho capito. Vuoi davvero eliminare tutte le auto?", 'confirm_clean');
+          }
+          return;
+        }
 
+        // --- 2. Conferma eliminazione singola auto ---
+        if (waitingFor === 'confirm_delete') {
+          if (isConfirm && pendingValue) {
+            actions.deleteVehicle(pendingValue);
+            setWaitingFor(null);
+            setPendingValue(null);
+            speakOnly("Veicolo eliminato.");
+          } else if (isCancel) {
+            setWaitingFor(null);
+            setPendingValue(null);
+            speakOnly("Operazione annullata.");
+          } else {
+            askAndListen("Vuoi procedere con l'eliminazione?", 'confirm_delete');
+          }
+          return;
+        }
 
-      } 
-
-      if (nlpResult.intent === 'intent.delete_all') {
-
-        console.log('intent delete');
-        const matchedBrand = cars.find(b => cleanAnswer.includes(b.plate));
-        if (matchedBrand) {
-          console.log('car plate match')
-          // askAndListen(`Ok, ${matchedBrand}. Che modello è?`, 'model');
-        } 
-
-
+        // --- 3. Ambiguità: Più auto trovate, chiediamo la targa ---
+        if (waitingFor === 'delete_disambiguate_plate') {
+          const userPlate = extractPlate(nlpResult.utterance);
+          
+          if (userPlate) {
+            const targetCar = cars.find(c => c.plate === userPlate);
+            if (targetCar) {
+              setPendingValue(targetCar.id);
+              askAndListen(`Ho trovato la ${targetCar.brand}. Confermi l'eliminazione?`, 'confirm_delete');
+            } else {
+              askAndListen("Non ho trovato questa targa nel garage. Puoi ripeterla?", 'delete_disambiguate_plate');
+            }
+          } else {
+            askAndListen("Non ho capito la targa, per favore scandiscila bene.", 'delete_disambiguate_plate');
+          }
+          return;
+        }
       }
 
+      // =======================================================
+      // CASO B: Nuovi comandi vocali liberi
+      // =======================================================
 
+      // --- ELIMINA TUTTO ---
+      if (nlpResult.intent === 'intent.delete_all') {
+        if (cars.length === 0) {
+          speakOnly("Il tuo garage è già vuoto.");
+          return;
+        }
+        askAndListen("Sei sicuro di voler svuotare interamente il tuo garage perdendo tutti i dati?", 'confirm_clean');
+        return;
+      }
 
+      // --- ELIMINA SINGOLO VEICOLO ---
+      if (nlpResult.intent === 'intent.delete_vehicle') {
+        if (cars.length === 0) {
+          speakOnly("Non hai nessun veicolo nel garage.");
+          return;
+        }
 
+        // 1. Controlliamo subito se l'utente ha detto direttamente la targa (infallibile)
+        const userPlate = extractPlate(nlpResult.utterance);
+        if (userPlate) {
+          const targetCar = cars.find(c => c.plate === userPlate);
+          if (targetCar) {
+            setPendingValue(targetCar.id);
+            askAndListen(`Sei sicuro di voler eliminare la ${targetCar.brand}?`, 'confirm_delete');
+            return;
+          }
+        }
 
-  
+        // 2. Se non ha detto la targa, cerchiamo per marca o modello
+        const matchedCars = cars.filter(c => 
+          cleanAnswer.includes(c.brand.toLowerCase()));
+
+        if (matchedCars.length === 0) {
+          speakOnly("Non ho trovato nessun veicolo con questo nome nel tuo garage.");
+        } 
+        else if (matchedCars.length === 1) {
+          // Trovata un'unica auto! Chiediamo conferma.
+          setPendingValue(matchedCars[0].id);
+          askAndListen(`Vuoi eliminare la ${matchedCars[0].brand}?`, 'confirm_delete');
+        } 
+        else {
+          // Ci sono più auto con lo stesso nome (es. 2 Fiat Panda)
+          askAndListen(`Ho trovato ${matchedCars.length} veicoli che corrispondono. Per favore, dimmi la targa di quella da eliminare.`, 'delete_disambiguate_plate');
+        }
+      }
     });
 
     return cleanup;
   }, [
-    registerActionHandler, waitingFor, pendingValue, actions, askAndListen, speakOnly
+    registerActionHandler, waitingFor, pendingValue, cars, actions, askAndListen, speakOnly
   ]);
 
   return { waitingFor };
