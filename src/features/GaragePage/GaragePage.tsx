@@ -3,7 +3,7 @@ import { useGarage } from '../../shared/Garage/useGarage';
 import { useNavigate } from 'react-router-dom';
 import { useGarageVoiceFlow } from './hook/useGarageVoiceFlow';
 
-export function GarageView() {
+export function GaragePage() {
 
   const handleGoToDetail = (id: string) => {
     navigate(`/detail/${id}`);
