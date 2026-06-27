@@ -72,7 +72,7 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
             askAndListen(`Ok, ${matchedBrand}. Che modello è?`, 'model');
           } else {
             setPendingValue(nlpResult.utterance);
-            askAndListen(`Non ho questa marca a listino, ma ho capito "${nlpResult.utterance}". È corretto?`, 'confirm_brand');
+            askAndListen(`Non ho trovato questa marca. Vuoi aggiungere comunuqe "${nlpResult.utterance}"?`, 'confirm_brand');
           }
           return;
         }
@@ -86,7 +86,7 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
             setPendingValue(null);
             askAndListen("Scusa, puoi ripetere la marca?", 'brand');
           } else {
-            askAndListen(`Non ho capito. È corretta la marca "${pendingValue}"? Rispondi sì o no.`, 'confirm_brand');
+            askAndListen(`Non ho capito. Vuoi aggiungere "${pendingValue}"?`, 'confirm_brand');
           }
           return;
         }
@@ -101,7 +101,7 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
             askAndListen("Ottimo. E qual è la targa?", 'plate');
           } else {
             setPendingValue(nlpResult.utterance);
-            askAndListen(`Non ho trovato questo modello, ma ho capito "${nlpResult.utterance}". Confermi?`, 'confirm_model');
+            askAndListen(`Non ho trovato questo modello. Vuoi aggiungere "${nlpResult.utterance}"?`, 'confirm_model');
           }
           return;
         }
@@ -115,7 +115,7 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
             setPendingValue(null);
             askAndListen("D'accordo, puoi ripetere il modello?", 'model');
           } else {
-            askAndListen(`Rispondi sì o no. Vuoi inserire il modello "${pendingValue}"?`, 'confirm_model');
+            askAndListen(`Vuoi inserire il modello "${pendingValue}"?`, 'confirm_model');
           }
           return;
         }
