@@ -148,7 +148,7 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
             speakOnly("Ok, salvataggio annullato.");
           } 
           else {
-            askAndListen("Non ho capito. Vuoi salvare il veicolo? Rispondi sì o no.", 'confirm_save');
+            askAndListen("Non ho capito. Vuoi salvare il veicolo?", 'confirm_save');
           }
           return;
         }
