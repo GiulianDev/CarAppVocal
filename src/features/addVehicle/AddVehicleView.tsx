@@ -16,8 +16,8 @@ export function AddVehicleView() {
   const [error, setError] = useState('');
 
   // 1. Nuovo stato per ricordare COSA stiamo chiedendo all'utente
-  const [waitingFor, setWaitingFor] = useState<'brand' | 'model' | 'plate' | null>(null);
-  
+  const [waitingFor, setWaitingFor] = useState<'brand' | 'model' | 'plate' | 'confirm_save' | null>(null);
+
   const navigate = useNavigate();
   const { brands, getModelsForBrand, isLoading } = useVehicleCatalog();
   const { addVehicle } = useGarage();
@@ -26,7 +26,7 @@ export function AddVehicleView() {
   const { registerActionHandler, startListening } = useVoiceContext();
 
   // 2. Funzione helper per far "parlare" l'app e riaprire il microfono
-  const askAndListen = (question: string, expectedField: 'brand' | 'model' | 'plate') => {
+  const askAndListen = (question: string, expectedField: 'brand' | 'model' | 'plate' | 'confirm_save') => {
     setWaitingFor(expectedField); // Ci segniamo cosa stiamo aspettando
     
     const utterance = new SpeechSynthesisUtterance(question);
@@ -52,49 +52,64 @@ export function AddVehicleView() {
       if (waitingFor) {
         const rawAnswer = nlpResult.utterance.toLowerCase();
 
+        // --- BRAND ---
         if (waitingFor === 'brand') {
-          // Ricerca nel catalogo per la marca
           const matchedBrand = brands.find(b => rawAnswer.includes(b.toLowerCase()));
-          const finalBrand = matchedBrand || nlpResult.utterance.trim(); // Fallback testo libero
-          setBrand(finalBrand);
-          setWaitingFor(null);
-          askAndListen(`Ok, ${finalBrand}. Che modello è?`, 'model');
+          
+          if (matchedBrand) {
+            setBrand(matchedBrand);
+            askAndListen(`Ok, ${matchedBrand}. Che modello è?`, 'model');
+          } else {
+            // Se non ha capito, ripete la domanda senza cancellare lo stato!
+            askAndListen("Non ho trovato questa marca. Puoi ripeterla?", 'brand');
+          }
           return;
         }
 
+        // --- MODEL ---
         if (waitingFor === 'model') {
-          // Se conosciamo il brand, cerchiamo il modello nel suo listino
           const availableModels = brand ? getModelsForBrand(brand) : [];
-          // Ordiniamo dal più lungo al più corto (es. "Model 3" prima di "Model")
           const sortedModels = [...availableModels].sort((a, b) => b.length - a.length);
           const matchedModel = sortedModels.find(m => rawAnswer.includes(m.toLowerCase()));
           
-          const finalModel = matchedModel || nlpResult.utterance.trim();
-          setModel(finalModel);
-          setWaitingFor(null);
-          askAndListen("Ottimo. E qual è la targa?", 'plate');
+          if (matchedModel) {
+            setModel(matchedModel);
+            askAndListen("Ottimo. E qual è la targa?", 'plate');
+          } else {
+            askAndListen("Non ho capito il modello. Puoi ripeterlo?", 'model');
+          }
           return;
         }
 
+        // --- PLATE ---
         if (waitingFor === 'plate') {
-          // Usiamo la rawAnswer (tutta la frase) o l'entità estratta
-          const extractedPlate = nlpResult.entities.find(e => e.entity === 'plate')?.sourceText || rawAnswer;
-          
-          // Rimuoviamo TUTTI gli spazi vuoti e i trattini, e mettiamo in maiuscolo
-          const cleanPlate = extractedPlate.replace(/[\s\-]/g, '').toUpperCase();
-          
-          // Validiamo che sia effettivamente una targa prima di accettarla
-          const isPlateValid = /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(cleanPlate);
+          const rawUtteranceCleaned = nlpResult.utterance.replace(/[\s\-\.,]/g, '').toUpperCase();
+          const plateMatch = rawUtteranceCleaned.match(/[A-Z]{2}\d{3}[A-Z]{2}/);
 
-          if (isPlateValid) {
-            setPlate(cleanPlate);
-            const finalMsg = new SpeechSynthesisUtterance("Perfetto, ho tutti i dati. Puoi procedere al salvataggio.");
-            finalMsg.lang = 'it-IT';
-            window.speechSynthesis.speak(finalMsg);
+          if (plateMatch) {
+            setPlate(plateMatch[0]);
+            askAndListen("Perfetto, ho tutti i dati. Vuoi che proceda al salvataggio?", 'confirm_save');
           } else {
-            askAndListen("Non ho capito la targa, assicurati di pronunciare due lettere, tre numeri e due lettere.", 'plate');
+            askAndListen("Non ho capito la targa, pronunciala di nuovo scandendo le lettere.", 'plate');
           }
-          setWaitingFor(null);
+          return; 
+        }
+
+        // --- CONFIRM SAVE ---
+        if (waitingFor === 'confirm_save') {
+          if (nlpResult.intent === 'intent.confirm' || rawAnswer.includes('si') || rawAnswer.includes('sì') || rawAnswer.includes('ok')) {
+             setWaitingFor(null); // QUI è giusto cancellarlo, abbiamo finito!
+             performSave();
+          } 
+          else if (nlpResult.intent === 'intent.cancel' || rawAnswer.includes('no') || rawAnswer.includes('annulla')) {
+             setWaitingFor(null); // QUI è giusto cancellarlo, abbiamo annullato!
+             const cancelMsg = new SpeechSynthesisUtterance("Ok, salvataggio annullato.");
+             cancelMsg.lang = 'it-IT';
+             window.speechSynthesis.speak(cancelMsg);
+          } 
+          else {
+             askAndListen("Non ho capito. Vuoi salvare il veicolo? Rispondi sì o no.", 'confirm_save');
+          }
           return;
         }
       }
@@ -109,13 +124,17 @@ export function AddVehicleView() {
         let foundBrand = brand;
         let foundModel = model;
 
-        // 1. ESTRAZIONE TARGA (Da NLP, infallibile)
-        const extractedPlate = nlpResult.entities.find(e => e.entity === 'plate')?.sourceText;
-        if (extractedPlate) {
-           const cleanPlate = extractedPlate.replace(/[\s\-]/g, '').toUpperCase();
-           setPlate(cleanPlate);
+        // 1. ESTRAZIONE TARGA (Brute-force Regex)
+        // Puliamo l'intera frase iniziale da spazi e cerchiamo il pattern
+        const rawUtteranceCleaned = nlpResult.utterance.replace(/[\s\-\.,]/g, '').toUpperCase();
+        const plateMatch = rawUtteranceCleaned.match(/[A-Z]{2}\d{3}[A-Z]{2}/);
+
+        let extractedPlate = null;
+        if (plateMatch) {
+          extractedPlate = plateMatch[0];
+          setPlate(extractedPlate);
         }
-        
+
         // 2. RICERCA MARCA NEL CATALOGO
         const catalogBrand = brands.find(b => rawUtterance.includes(b.toLowerCase()));
         
@@ -148,8 +167,12 @@ export function AddVehicleView() {
         else if (foundBrand && !foundModel) {
           askAndListen(`Ok, ${foundBrand}. Che modello è esattamente?`, 'model');
         } 
-        else if (foundBrand && foundModel && !extractedPlate && !plate) {
-          askAndListen(`Ho inserito ${foundBrand} ${foundModel}. Qual è la targa?`, 'plate');
+        else if (foundBrand && foundModel && (!extractedPlate && !plate)) {
+          askAndListen(`Ok per ${foundBrand} ${foundModel}. Qual è la targa?`, 'plate');
+        }
+        else if (foundBrand && foundModel && (extractedPlate || plate)) {
+          // Ha detto marca, modello e targa tutto nella primissima frase!
+          askAndListen(`Ho tutto: ${foundBrand} ${foundModel} con targa ${extractedPlate || plate}. Vuoi salvare?`, 'confirm_save');
         }
       }
     });
@@ -157,28 +180,35 @@ export function AddVehicleView() {
     return cleanup;
   }, [registerActionHandler, startListening, waitingFor, brand, model, brands, getModelsForBrand, plate]);
 
-
-  // ==========================================
-  // SUBMIT STANDARD
-  // ==========================================
-  const handleSubmit = (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    setError('');
-
+  // LOGICA DI SALVATAGGIO CENTRALIZZATA
+  const performSave = () => {
     const plateRegex = /^[A-Z]{2}\d{3}[A-Z]{2}$/i;
     if (!plateRegex.test(plate.trim())) {
-      setError('Inserisci una targa valida (es. AA123BB)');
+      setError('Targa non valida, impossibile salvare.');
+      return;
+    }
+    if (!brand.trim() || !model.trim()) {
+      setError('Marca e modello mancanti.');
       return;
     }
 
-    if (!brand.trim() || !model.trim()) {
-      setError('Seleziona marca e modello');
-      return;
-    }
+    // Facciamo dire all'app che l'operazione è conclusa
+    const finalMsg = new SpeechSynthesisUtterance("Veicolo salvato nel garage. Ti porto al riepilogo.");
+    finalMsg.lang = 'it-IT';
+    window.speechSynthesis.speak(finalMsg);
 
     const newCar = addVehicle(plate, brand.trim(), model.trim());
     navigate(`/detail/${newCar.id}`);
   };
+
+  // Il submit manuale (click) ora chiama semplicemente performSave()
+  const handleSubmit = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    setError('');
+    performSave();
+  };
+
+
 
   return (
     // Restituiamo DIRETTAMENTE la card. App.tsx si occuperà di centrarla.

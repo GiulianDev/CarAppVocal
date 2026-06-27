@@ -40,7 +40,6 @@ export async function initNlp() {
   // ==========================================
   // 2. ADDESTRAMENTO DEGLI INTENTI (Corpus)
   // ==========================================
-  
   const ADD_VEHICLE = 'intent.add_vehicle';
   
   // Inseriamo vari modi in cui l'utente potrebbe esprimere l'intenzione.
@@ -58,6 +57,21 @@ export async function initNlp() {
   nlp.addDocument('it', 'registra una %brand% targata %plate%', ADD_VEHICLE);
   nlp.addDocument('it', 'ho comprato una %brand% %model%', ADD_VEHICLE);
   nlp.addDocument('it', 'nuova macchina', ADD_VEHICLE);
+
+  // NUOVI INTENTI DI CONFERMA E ANNULLAMENTO
+  const CONFIRM = 'intent.confirm';
+  nlp.addDocument('it', 'sì', CONFIRM);
+  nlp.addDocument('it', 'si', CONFIRM);
+  nlp.addDocument('it', 'certo', CONFIRM);
+  nlp.addDocument('it', 'ok', CONFIRM);
+  nlp.addDocument('it', 'va bene', CONFIRM);
+  nlp.addDocument('it', 'procedi', CONFIRM);
+  nlp.addDocument('it', 'salva', CONFIRM);
+
+  const CANCEL = 'intent.cancel';
+  nlp.addDocument('it', 'no', CANCEL);
+  nlp.addDocument('it', 'annulla', CANCEL);
+  nlp.addDocument('it', 'fermati', CANCEL);
 
   // ==========================================
   // 3. TRAINING DEL MODELLO
