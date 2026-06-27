@@ -13,7 +13,7 @@ interface GarageVoiceFlowProps {
 }
 
 // Stati di attesa per guidare la conversazione
-type WaitState = 'confirm_clean' | 'confirm_delete' | 'delete_disambiguate_plate' | null;
+type WaitState = 'confirm_clean' | 'confirm_delete' | 'delete_disambiguate_plate' | 'delete_disambiguate_model_or_plate' | null;
 
 export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
   const [waitingFor, setWaitingFor] = useState<WaitState>(null);
@@ -101,6 +101,52 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
           }
           return;
         }
+
+        // --- 4. Ambiguità: Chiediamo modello o targa ---
+        if (waitingFor === 'delete_disambiguate_model_or_plate') {
+          const userPlate = extractPlate(nlpResult.utterance);
+          
+          // Caso A: L'utente ha preferito dire la targa
+          if (userPlate) {
+            const targetCar = cars.find(c => c.plate === userPlate);
+            if (targetCar) {
+              setPendingValue(targetCar.id);
+              askAndListen(`Ho trovato la ${targetCar.brand}. Confermi l'eliminazione?`, 'confirm_delete');
+            } else {
+              // Ha detto una targa, ma non c'è. Gli ridiamo entrambe le opzioni.
+              askAndListen("Non ho trovato questa targa. Puoi dirmi il modello esatto oppure ripetere la targa?", 'delete_disambiguate_model_or_plate');
+            }
+            return;
+          }
+
+          // Caso B: Non ha detto una targa, presumiamo abbia detto un modello
+          let matchedCars = cars.filter(c => {
+            const brandLower = c.brand.toLowerCase();
+            const brandWords = brandLower.split(/\s+/).filter(w => w.length > 2);
+            return brandWords.some(bw => cleanAnswer.includes(bw));
+          });
+
+          // Stessa ottimizzazione: cerchiamo match esatti completi
+          if (matchedCars.length > 1) {
+            const exactMatches = matchedCars.filter(c => cleanAnswer.includes(c.brand.toLowerCase()));
+            if (exactMatches.length === 1) {
+              matchedCars = exactMatches;
+            }
+          }
+
+          // Risolviamo l'input del modello
+          if (matchedCars.length === 1) {
+            // Trovata! Ha detto il modello e c'è solo questa.
+            setPendingValue(matchedCars[0].id);
+            askAndListen(`Vuoi eliminare la ${matchedCars[0].brand}?`, 'confirm_delete');
+          } else {
+            // Se ancora non la trova, oppure ci sono ancora più veicoli (es. ha due Fiat Panda identiche),
+            // scatta il paracadute: chiediamo forzatamente la targa.
+            askAndListen("Ci sono ancora corrispondenze multiple o non ho capito. Per favore, dimmi solo la targa del veicolo.", 'delete_disambiguate_plate');
+          }
+          return;
+        }
+
       }
 
       // =======================================================
@@ -117,6 +163,7 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
         return;
       }
 
+      // --- ELIMINA SINGOLO VEICOLO ---
       // --- ELIMINA SINGOLO VEICOLO ---
       if (nlpResult.intent === 'intent.delete_vehicle') {
         if (cars.length === 0) {
@@ -135,22 +182,39 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
           }
         }
 
-        // 2. Se non ha detto la targa, cerchiamo per marca o modello
-        const matchedCars = cars.filter(c => 
-          cleanAnswer.includes(c.brand.toLowerCase()));
+        // 2. Se non ha detto la targa, facciamo un match "contains" sul campo brand (che ora include marca e modello)
+        let matchedCars = cars.filter(c => {
+          const brandLower = c.brand.toLowerCase();
+          // Dividiamo "Fiat Panda" in ["fiat", "panda"] (ignorando paroline troppo corte)
+          const brandWords = brandLower.split(/\s+/).filter(w => w.length > 2);
+          
+          // Controlliamo se ALMENO UNA parola dell'auto ("fiat" o "panda") è contenuta nella frase dell'utente
+          return brandWords.some(bw => cleanAnswer.includes(bw));
+        });
 
+        // OTTIMIZZAZIONE: Se l'utente dice "Fiat Panda", ma abbiamo anche una "Fiat Punto",
+        // il codice sopra matcherebbe entrambe (perché entrambe contengono "Fiat").
+        // Quindi se troviamo più veicoli, controlliamo se c'è un match della stringa COMPLETA.
+        if (matchedCars.length > 1) {
+          const exactMatches = matchedCars.filter(c => cleanAnswer.includes(c.brand.toLowerCase()));
+          if (exactMatches.length === 1) {
+            matchedCars = exactMatches;
+          }
+        }
+
+        // 3. Risoluzione dei risultati
         if (matchedCars.length === 0) {
           speakOnly("Non ho trovato nessun veicolo con questo nome nel tuo garage.");
         } 
         else if (matchedCars.length === 1) {
-          // Trovata un'unica auto! Chiediamo conferma.
+          // Trovata un'unica auto! Salviamo l'id e chiediamo conferma.
           setPendingValue(matchedCars[0].id);
           askAndListen(`Vuoi eliminare la ${matchedCars[0].brand}?`, 'confirm_delete');
         } 
         else {
-          // Ci sono più auto con lo stesso nome (es. 2 Fiat Panda)
-          askAndListen(`Ho trovato ${matchedCars.length} veicoli che corrispondono. Per favore, dimmi la targa di quella da eliminare.`, 'delete_disambiguate_plate');
-        }
+          // Ci sono più auto con lo stesso nome (es. 2 Panda, o ha detto solo "Fiat")
+          askAndListen(`Ho trovato ${matchedCars.length} veicoli che corrispondono. Dimmi il modello esatto oppure la targa.`, 'delete_disambiguate_model_or_plate');        }
+        return;
       }
 
       // --- NAVIGA AD AGGIUNGI VEICOLO ---
