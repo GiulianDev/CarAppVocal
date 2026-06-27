@@ -8,6 +8,7 @@ interface GarageVoiceFlowProps {
   actions: {
     deleteVehicle: (id: string) => void;
     resetGarage: () => void;
+    goToAddVehicle: () => void;
   };
 }
 
@@ -151,6 +152,14 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
           askAndListen(`Ho trovato ${matchedCars.length} veicoli che corrispondono. Per favore, dimmi la targa di quella da eliminare.`, 'delete_disambiguate_plate');
         }
       }
+
+      // --- NAVIGA AD AGGIUNGI VEICOLO ---
+      if (nlpResult.intent === 'intent.add_vehicle') {
+        speakOnly("Certo, cosa vuoi aggiungere?");
+        actions.goToAddVehicle();
+        return;
+      }
+
     });
 
     return cleanup;

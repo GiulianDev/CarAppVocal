@@ -5,21 +5,6 @@ import { useGarageVoiceFlow } from './hook/useGarageVoiceFlow';
 
 export function GarageView() {
 
-  const navigate = useNavigate();
-  
-  const { cars, resetGarage, deleteVehicle } = useGarage();
-
-    // 3. Orchestrazione Vocale (Il Cervello NLP)
-    useGarageVoiceFlow({
-      cars: cars,
-      actions: { deleteVehicle, resetGarage }
-    });
-
-  const handleResetGarage = () => {
-    console.log('reset garage...');
-    resetGarage();
-  } 
-
   const handleGoToDetail = (id: string) => {
     navigate(`/detail/${id}`);
   }  
@@ -27,6 +12,23 @@ export function GarageView() {
     console.log('go to add vehicle...');
     navigate('/add-vehicle/');
   } 
+  
+  const navigate = useNavigate();
+  
+  const { cars, resetGarage, deleteVehicle } = useGarage();
+
+    // 3. Orchestrazione Vocale (Il Cervello NLP)
+    useGarageVoiceFlow({
+      cars: cars,
+      actions: { deleteVehicle, resetGarage, goToAddVehicle: handleGoToAddVehicle }
+    });
+
+  const handleResetGarage = () => {
+    console.log('reset garage...');
+    resetGarage();
+  } 
+
+  
 
   return (
     // Rimosso il wrapper min-h-screen, manteniamo solo la larghezza e centratura
