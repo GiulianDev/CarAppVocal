@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Input } from '../../shared/ui/Input';
 import { Button } from '../../shared/ui/Button';
 import { Combobox } from '../../shared/ui/Combobox';
@@ -14,7 +14,9 @@ export function AddVehicleView() {
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [error, setError] = useState('');
-
+  
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  
   // 1. Nuovo stato per ricordare COSA stiamo chiedendo all'utente
   const [waitingFor, setWaitingFor] = useState<'brand' | 'model' | 'plate' | 'confirm_save' | null>(null);
 
@@ -27,14 +29,21 @@ export function AddVehicleView() {
 
   // 2. Funzione helper per far "parlare" l'app e riaprire il microfono
   const askAndListen = (question: string, expectedField: 'brand' | 'model' | 'plate' | 'confirm_save') => {
-    setWaitingFor(expectedField); // Ci segniamo cosa stiamo aspettando
+    setWaitingFor(expectedField); 
     
     const utterance = new SpeechSynthesisUtterance(question);
     utterance.lang = 'it-IT';
     
-    // Appena ha finito di pronunciare la domanda, riapre il microfono
+    // TRUCCO ANTI-BUG CHROME: Salviamo l'istanza nel Ref affinché 
+    // il browser non la distrugga dalla memoria prima del tempo.
+    utteranceRef.current = utterance;
+    
     utterance.onend = () => {
-      startListening();
+      // Diamo 300 millisecondi di respiro alla scheda audio 
+      // per passare da "Uscita" a "Ingresso"
+      setTimeout(() => {
+        startListening();
+      }, 300);
     };
     
     window.speechSynthesis.speak(utterance);
