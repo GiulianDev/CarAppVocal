@@ -21,13 +21,10 @@ interface VoiceFlowProps {
   };
 }
 
-// Estendiamo i possibili stati di attesa
 type WaitState = 'brand' | 'confirm_brand' | 'model' | 'confirm_model' | 'plate' | 'confirm_save' | null;
 
 export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) {
   const [waitingFor, setWaitingFor] = useState<WaitState>(null);
-  
-  // Stato temporaneo per salvare la stringa "non riconosciuta" in attesa di conferma
   const [pendingValue, setPendingValue] = useState<string | null>(null);
   
   const { registerActionHandler } = useVoiceContext();
@@ -42,35 +39,48 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
     const cleanup = registerActionHandler((nlpResult) => {
       const rawAnswer = nlpResult.utterance.toLowerCase();
       
-      // Helper per capire se l'utente sta dicendo "Sì"
-      const isConfirm = nlpResult.intent === 'intent.confirm' || rawAnswer.match(/\b(si|sì|ok|certo|procedi|corretto|esatto)\b/);
-      // Helper per capire se l'utente sta dicendo "No"
-      const isCancel = nlpResult.intent === 'intent.cancel' || rawAnswer.match(/\b(no|annulla|sbagliato|errato)\b/);
+      // 1. Pulizia drastica: rimuoviamo la punteggiatura che le API vocali spesso inseriscono
+      const cleanAnswer = rawAnswer.replace(/[.,!?]/g, '').trim();
+
+      // 2. Dizionari di conferma sicuri (nessun problema con le lettere accentate)
+      const confirmWords = ['si', 'sì', 'ok', 'certo', 'esatto', 'corretto', 'procedi', 'conferma', 'confermo', 'vai'];
+      const cancelWords = ['no', 'annulla', 'sbagliato', 'errato', 'fermati'];
+
+      // 3. Dividiamo la frase dell'utente in parole singole
+      const wordsArray = cleanAnswer.split(/\s+/);
+
+      // 4. Logica di match robusta: controlliamo l'intento NLP, la frase intera o le singole parole
+      const isConfirm = 
+        nlpResult.intent === 'intent.confirm' || 
+        confirmWords.includes(cleanAnswer) || 
+        wordsArray.some(word => confirmWords.includes(word));
+
+      const isCancel = 
+        nlpResult.intent === 'intent.cancel' || 
+        cancelWords.includes(cleanAnswer) || 
+        wordsArray.some(word => cancelWords.includes(word));
 
       // =======================================================
       // CASO A: Slot Filling (Stiamo aspettando una risposta)
       // =======================================================
       if (waitingFor) {
         
-        // --- BRAND ---
         if (waitingFor === 'brand') {
           const matchedBrand = catalog.brands.find(b => rawAnswer.includes(b.toLowerCase()));
           if (matchedBrand) {
             actions.setBrand(matchedBrand);
             askAndListen(`Ok, ${matchedBrand}. Che modello è?`, 'model');
           } else {
-            // NOVITÀ: Salviamo quello che abbiamo sentito e chiediamo conferma
             setPendingValue(nlpResult.utterance);
             askAndListen(`Non ho questa marca a listino, ma ho capito "${nlpResult.utterance}". È corretto?`, 'confirm_brand');
           }
           return;
         }
 
-        // --- CONFERMA BRAND OUT-OF-CATALOG ---
         if (waitingFor === 'confirm_brand') {
           if (isConfirm && pendingValue) {
             actions.setBrand(pendingValue);
-            setPendingValue(null); // Puliamo la memoria
+            setPendingValue(null);
             askAndListen("Perfetto, l'ho aggiunta. Che modello è?", 'model');
           } else if (isCancel) {
             setPendingValue(null);
@@ -81,7 +91,6 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
           return;
         }
 
-        // --- MODEL ---
         if (waitingFor === 'model') {
           const availableModels = form.brand ? catalog.getModelsForBrand(form.brand) : [];
           const sortedModels = [...availableModels].sort((a, b) => b.length - a.length);
@@ -91,14 +100,12 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
             actions.setModel(matchedModel);
             askAndListen("Ottimo. E qual è la targa?", 'plate');
           } else {
-            // NOVITÀ: Salviamo il modello sconosciuto e chiediamo conferma
             setPendingValue(nlpResult.utterance);
             askAndListen(`Non ho trovato questo modello, ma ho capito "${nlpResult.utterance}". Confermi?`, 'confirm_model');
           }
           return;
         }
 
-        // --- CONFERMA MODEL OUT-OF-CATALOG ---
         if (waitingFor === 'confirm_model') {
           if (isConfirm && pendingValue) {
             actions.setModel(pendingValue);
@@ -113,7 +120,6 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
           return;
         }
 
-        // --- PLATE ---
         if (waitingFor === 'plate') {
           const rawUtteranceCleaned = nlpResult.utterance.replace(/[\s\-\.,]/g, '').toUpperCase();
           const plateMatch = rawUtteranceCleaned.match(/[A-Z]{2}\d{3}[A-Z]{2}/);
@@ -127,7 +133,6 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
           return; 
         }
 
-        // --- CONFIRM SAVE ---
         if (waitingFor === 'confirm_save') {
           if (isConfirm) {
             setWaitingFor(null);
@@ -150,7 +155,7 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
       }
 
       // =======================================================
-      // CASO B: Comando generico iniziale (Nessuna modifica necessaria qui)
+      // CASO B: Comando generico iniziale
       // =======================================================
       if (nlpResult.intent === 'intent.add_vehicle') {
         let foundBrand = form.brand;

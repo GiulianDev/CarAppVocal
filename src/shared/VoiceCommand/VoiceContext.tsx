@@ -36,7 +36,7 @@ const VoiceContext = createContext<VoiceContextType | null>(null);
 
 export const VoiceProvider = ({ children }: { children: React.ReactNode }) => {
   // 1. Usiamo il tuo hook nativo per gestire Capacitor/Web Speech API
-  const { startListening: startNativeListening, isListening, transcript, error } = useVoiceCommand();
+  const { startListening: startNativeListening, isListening, error } = useVoiceCommand();
   
   // 2. Usiamo un ref per memorizzare la funzione "ascoltatrice" della pagina corrente.
   // Usiamo un ref (e non uno state) perché non vogliamo che il cambio di pagina 

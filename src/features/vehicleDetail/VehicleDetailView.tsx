@@ -1,6 +1,4 @@
 import { Button } from '../../shared/ui/Button';
-import { useCarContext } from '../../shared/Garage/CarContext';
-import type { Car } from '../../shared/Garage/car';
 import { useGarage } from '../../shared/Garage/useGarage';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
