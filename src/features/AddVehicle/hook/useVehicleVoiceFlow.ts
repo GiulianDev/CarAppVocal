@@ -17,18 +17,23 @@ interface VoiceFlowProps {
     setPlate: (plate: string) => void;
     setBrand: (brand: string) => void;
     setModel: (model: string) => void;
-    performSave: () => boolean; // Modificato per restituire un booleano (success/fail)
+    performSave: () => boolean;
   };
 }
 
+// Estendiamo i possibili stati di attesa
+type WaitState = 'brand' | 'confirm_brand' | 'model' | 'confirm_model' | 'plate' | 'confirm_save' | null;
+
 export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) {
-  const [waitingFor, setWaitingFor] = useState<'brand' | 'model' | 'plate' | 'confirm_save' | null>(null);
+  const [waitingFor, setWaitingFor] = useState<WaitState>(null);
+  
+  // Stato temporaneo per salvare la stringa "non riconosciuta" in attesa di conferma
+  const [pendingValue, setPendingValue] = useState<string | null>(null);
   
   const { registerActionHandler } = useVoiceContext();
   const { speakAndListen, speakOnly } = useSpeechAction();
 
-  // Combina l'impostazione dello stato con l'azione vocale
-  const askAndListen = (question: string, expectedField: 'brand' | 'model' | 'plate' | 'confirm_save') => {
+  const askAndListen = (question: string, expectedField: WaitState) => {
     setWaitingFor(expectedField);
     speakAndListen(question);
   };
@@ -36,9 +41,14 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
   useEffect(() => {
     const cleanup = registerActionHandler((nlpResult) => {
       const rawAnswer = nlpResult.utterance.toLowerCase();
+      
+      // Helper per capire se l'utente sta dicendo "Sì"
+      const isConfirm = nlpResult.intent === 'intent.confirm' || rawAnswer.match(/\b(si|sì|ok|certo|procedi|corretto|esatto)\b/);
+      // Helper per capire se l'utente sta dicendo "No"
+      const isCancel = nlpResult.intent === 'intent.cancel' || rawAnswer.match(/\b(no|annulla|sbagliato|errato)\b/);
 
       // =======================================================
-      // CASO A: Slot Filling (Stiamo aspettando una risposta specifica)
+      // CASO A: Slot Filling (Stiamo aspettando una risposta)
       // =======================================================
       if (waitingFor) {
         
@@ -49,7 +59,24 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
             actions.setBrand(matchedBrand);
             askAndListen(`Ok, ${matchedBrand}. Che modello è?`, 'model');
           } else {
-            askAndListen("Non ho trovato questa marca. Puoi ripeterla?", 'brand');
+            // NOVITÀ: Salviamo quello che abbiamo sentito e chiediamo conferma
+            setPendingValue(nlpResult.utterance);
+            askAndListen(`Non ho questa marca a listino, ma ho capito "${nlpResult.utterance}". È corretto?`, 'confirm_brand');
+          }
+          return;
+        }
+
+        // --- CONFERMA BRAND OUT-OF-CATALOG ---
+        if (waitingFor === 'confirm_brand') {
+          if (isConfirm && pendingValue) {
+            actions.setBrand(pendingValue);
+            setPendingValue(null); // Puliamo la memoria
+            askAndListen("Perfetto, l'ho aggiunta. Che modello è?", 'model');
+          } else if (isCancel) {
+            setPendingValue(null);
+            askAndListen("Scusa, puoi ripetere la marca?", 'brand');
+          } else {
+            askAndListen(`Non ho capito. È corretta la marca "${pendingValue}"? Rispondi sì o no.`, 'confirm_brand');
           }
           return;
         }
@@ -64,7 +91,24 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
             actions.setModel(matchedModel);
             askAndListen("Ottimo. E qual è la targa?", 'plate');
           } else {
-            askAndListen("Non ho capito il modello. Puoi ripeterlo?", 'model');
+            // NOVITÀ: Salviamo il modello sconosciuto e chiediamo conferma
+            setPendingValue(nlpResult.utterance);
+            askAndListen(`Non ho trovato questo modello, ma ho capito "${nlpResult.utterance}". Confermi?`, 'confirm_model');
+          }
+          return;
+        }
+
+        // --- CONFERMA MODEL OUT-OF-CATALOG ---
+        if (waitingFor === 'confirm_model') {
+          if (isConfirm && pendingValue) {
+            actions.setModel(pendingValue);
+            setPendingValue(null);
+            askAndListen("Aggiunto. E qual è la targa?", 'plate');
+          } else if (isCancel) {
+            setPendingValue(null);
+            askAndListen("D'accordo, puoi ripetere il modello?", 'model');
+          } else {
+            askAndListen(`Rispondi sì o no. Vuoi inserire il modello "${pendingValue}"?`, 'confirm_model');
           }
           return;
         }
@@ -85,7 +129,7 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
 
         // --- CONFIRM SAVE ---
         if (waitingFor === 'confirm_save') {
-          if (nlpResult.intent === 'intent.confirm' || rawAnswer.match(/\b(si|sì|ok|certo|procedi)\b/)) {
+          if (isConfirm) {
             setWaitingFor(null);
             const success = actions.performSave();
             if (success) {
@@ -94,7 +138,7 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
                speakOnly("C'è un errore nei dati, controlla lo schermo per favore.");
             }
           } 
-          else if (nlpResult.intent === 'intent.cancel' || rawAnswer.match(/\b(no|annulla|fermati)\b/)) {
+          else if (isCancel) {
             setWaitingFor(null);
             speakOnly("Ok, salvataggio annullato.");
           } 
@@ -106,26 +150,23 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
       }
 
       // =======================================================
-      // CASO B: Comando generico inziale
+      // CASO B: Comando generico iniziale (Nessuna modifica necessaria qui)
       // =======================================================
       if (nlpResult.intent === 'intent.add_vehicle') {
         let foundBrand = form.brand;
         let foundModel = form.model;
 
-        // 1. Estrazione Targa
         const rawUtteranceCleaned = nlpResult.utterance.replace(/[\s\-\.,]/g, '').toUpperCase();
         const plateMatch = rawUtteranceCleaned.match(/[A-Z]{2}\d{3}[A-Z]{2}/);
         let extractedPlate = plateMatch ? plateMatch[0] : null;
         
         if (extractedPlate) actions.setPlate(extractedPlate);
 
-        // 2. Ricerca Marca
         const catalogBrand = catalog.brands.find(b => rawAnswer.includes(b.toLowerCase()));
         if (catalogBrand) {
           foundBrand = catalogBrand;
           actions.setBrand(foundBrand);
 
-          // 3. Ricerca Modello
           const catalogModels = catalog.getModelsForBrand(catalogBrand);
           const sortedModels = [...catalogModels].sort((a, b) => b.length - a.length);
           const catalogModel = sortedModels.find(m => rawAnswer.includes(m.toLowerCase()));
@@ -135,7 +176,6 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
             actions.setModel(foundModel);
           }
         } else {
-          // Fallback NLP NER
           const nlpBrand = nlpResult.entities.find(e => e.entity === 'brand')?.sourceText;
           if (nlpBrand) {
             foundBrand = nlpBrand;
@@ -143,7 +183,6 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
           }
         }
 
-        // 4. Intelligenza / Slot Filling
         if (!foundBrand) {
           askAndListen("Qual è la marca del veicolo?", 'brand');
         } 
@@ -161,7 +200,7 @@ export function useVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) 
 
     return cleanup;
   }, [
-    registerActionHandler, waitingFor, catalog, form, actions, askAndListen, speakOnly
+    registerActionHandler, waitingFor, pendingValue, catalog, form, actions, askAndListen, speakOnly
   ]);
 
   return { waitingFor };
