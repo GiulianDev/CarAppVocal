@@ -1,5 +1,5 @@
 import { createContext, useContext, useRef, useCallback } from 'react';
-import { useVoiceCommand } from '../../features/voiceCommand/useVoiceCommand';
+import { useVoiceCommand } from './useVoiceCommand';
 import { processVoiceText } from './nlpService';
 
 // ==========================================

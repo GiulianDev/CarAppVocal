@@ -15,66 +15,151 @@ export function AddVehicleView() {
   const [model, setModel] = useState('');
   const [error, setError] = useState('');
 
+  // 1. Nuovo stato per ricordare COSA stiamo chiedendo all'utente
+  const [waitingFor, setWaitingFor] = useState<'brand' | 'model' | 'plate' | null>(null);
+  
   const navigate = useNavigate();
   const { brands, getModelsForBrand, isLoading } = useVehicleCatalog();
   const { addVehicle } = useGarage();
   
   // INIETTIAMO IL CONTEXT
-  const { registerActionHandler } = useVoiceContext();
+  const { registerActionHandler, startListening } = useVoiceContext();
+
+  // 2. Funzione helper per far "parlare" l'app e riaprire il microfono
+  const askAndListen = (question: string, expectedField: 'brand' | 'model' | 'plate') => {
+    setWaitingFor(expectedField); // Ci segniamo cosa stiamo aspettando
+    
+    const utterance = new SpeechSynthesisUtterance(question);
+    utterance.lang = 'it-IT';
+    
+    // Appena ha finito di pronunciare la domanda, riapre il microfono
+    utterance.onend = () => {
+      startListening();
+    };
+    
+    window.speechSynthesis.speak(utterance);
+  };
 
   // ==========================================
   // LOGICA DI ASCOLTO VOCALE
   // ==========================================
   useEffect(() => {
-    // Ci registriamo come ascoltatori attivi
     const cleanup = registerActionHandler((nlpResult) => {
       
-      // Filtriamo solo gli intenti che ci interessano in questa pagina
-      if (nlpResult.intent === 'intent.add_vehicle') {
-        setError(''); // Puliamo eventuali errori precedenti
+      // =======================================================
+      // CASO A: Stiamo aspettando una RISPOSTA SPECIFICA (Slot Filling)
+      // =======================================================
+      if (waitingFor) {
+        const rawAnswer = nlpResult.utterance.toLowerCase();
 
-        // 1. Estraiamo le entità dall'array restituito da NLP.js
-        const extractedPlate = nlpResult.entities.find(e => e.entity === 'plate')?.sourceText;
-        const extractedBrand = nlpResult.entities.find(e => e.entity === 'brand')?.sourceText;
-        const extractedModel = nlpResult.entities.find(e => e.entity === 'model')?.sourceText;
-
-        // 2. Simuliamo l'inserimento dell'utente!
-        
-        if (extractedPlate) {
-          // La Regex NLP ha già validato il formato, ma la mettiamo comunque in maiuscolo
-          setPlate(extractedPlate.toUpperCase());
+        if (waitingFor === 'brand') {
+          // Ricerca nel catalogo per la marca
+          const matchedBrand = brands.find(b => rawAnswer.includes(b.toLowerCase()));
+          const finalBrand = matchedBrand || nlpResult.utterance.trim(); // Fallback testo libero
+          setBrand(finalBrand);
+          setWaitingFor(null);
+          askAndListen(`Ok, ${finalBrand}. Che modello è?`, 'model');
+          return;
         }
 
-        if (extractedBrand) {
-          // Cerchiamo un match nel nostro listino (case-insensitive)
-          const catalogMatch = brands.find(
-            b => b.toLowerCase() === extractedBrand.trim().toLowerCase()
-          );
+        if (waitingFor === 'model') {
+          // Se conosciamo il brand, cerchiamo il modello nel suo listino
+          const availableModels = brand ? getModelsForBrand(brand) : [];
+          // Ordiniamo dal più lungo al più corto (es. "Model 3" prima di "Model")
+          const sortedModels = [...availableModels].sort((a, b) => b.length - a.length);
+          const matchedModel = sortedModels.find(m => rawAnswer.includes(m.toLowerCase()));
           
-          // Se lo troviamo usiamo quello del catalogo (es. "BMW"), 
-          // altrimenti usiamo la stringa vocale raw (veicolo fuori listino)
-          const finalBrand = catalogMatch || extractedBrand.trim();
-          setBrand(finalBrand);
+          const finalModel = matchedModel || nlpResult.utterance.trim();
+          setModel(finalModel);
+          setWaitingFor(null);
+          askAndListen("Ottimo. E qual è la targa?", 'plate');
+          return;
+        }
 
-          // Se abbiamo trovato il brand e l'utente ha pronunciato un modello, settiamo anche quello
-          if (extractedModel) {
-            const availableModels = catalogMatch ? getModelsForBrand(catalogMatch) : [];
-            const modelMatch = availableModels.find(
-              m => m.toLowerCase() === extractedModel.trim().toLowerCase()
-            );
-            setModel(modelMatch || extractedModel.trim());
+        if (waitingFor === 'plate') {
+          // Usiamo la rawAnswer (tutta la frase) o l'entità estratta
+          const extractedPlate = nlpResult.entities.find(e => e.entity === 'plate')?.sourceText || rawAnswer;
+          
+          // Rimuoviamo TUTTI gli spazi vuoti e i trattini, e mettiamo in maiuscolo
+          const cleanPlate = extractedPlate.replace(/[\s\-]/g, '').toUpperCase();
+          
+          // Validiamo che sia effettivamente una targa prima di accettarla
+          const isPlateValid = /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(cleanPlate);
+
+          if (isPlateValid) {
+            setPlate(cleanPlate);
+            const finalMsg = new SpeechSynthesisUtterance("Perfetto, ho tutti i dati. Puoi procedere al salvataggio.");
+            finalMsg.lang = 'it-IT';
+            window.speechSynthesis.speak(finalMsg);
+          } else {
+            askAndListen("Non ho capito la targa, assicurati di pronunciare due lettere, tre numeri e due lettere.", 'plate');
           }
+          setWaitingFor(null);
+          return;
+        }
+      }
+
+      // =======================================================
+      // CASO B: È un comando generico inziale
+      // =======================================================
+      if (nlpResult.intent === 'intent.add_vehicle') {
+        setError('');
+        
+        const rawUtterance = nlpResult.utterance.toLowerCase();
+        let foundBrand = brand;
+        let foundModel = model;
+
+        // 1. ESTRAZIONE TARGA (Da NLP, infallibile)
+        const extractedPlate = nlpResult.entities.find(e => e.entity === 'plate')?.sourceText;
+        if (extractedPlate) {
+           const cleanPlate = extractedPlate.replace(/[\s\-]/g, '').toUpperCase();
+           setPlate(cleanPlate);
+        }
+        
+        // 2. RICERCA MARCA NEL CATALOGO
+        const catalogBrand = brands.find(b => rawUtterance.includes(b.toLowerCase()));
+        
+        if (catalogBrand) {
+          foundBrand = catalogBrand;
+          setBrand(foundBrand);
+
+          // 3. SE TROVIAMO LA MARCA, CERCHIAMO IL MODELLO NEL SUO CATALOGO
+          const catalogModels = getModelsForBrand(catalogBrand);
+          const sortedModels = [...catalogModels].sort((a, b) => b.length - a.length);
+          const catalogModel = sortedModels.find(m => rawUtterance.includes(m.toLowerCase()));
+
+          if (catalogModel) {
+            foundModel = catalogModel;
+            setModel(foundModel);
+          }
+        } else {
+          // Fallback: se il catalogo fallisce, vediamo se NLP aveva catturato qualcosa (es. "marca Pagani")
+          const nlpBrand = nlpResult.entities.find(e => e.entity === 'brand')?.sourceText;
+          if (nlpBrand) {
+            foundBrand = nlpBrand;
+            setBrand(foundBrand);
+          }
+        }
+
+        // 4. CONTROLLO FINALE (Il Cervello Conversazionale)
+        if (!foundBrand) {
+          askAndListen("Qual è la marca del veicolo?", 'brand');
+        } 
+        else if (foundBrand && !foundModel) {
+          askAndListen(`Ok, ${foundBrand}. Che modello è esattamente?`, 'model');
+        } 
+        else if (foundBrand && foundModel && !extractedPlate && !plate) {
+          askAndListen(`Ho inserito ${foundBrand} ${foundModel}. Qual è la targa?`, 'plate');
         }
       }
     });
 
-    // Cleanup fondamentale: quando l'utente cambia pagina (es. va su /garage),
-    // questa pagina smette di ascoltare i comandi vocali.
     return cleanup;
-  }, [registerActionHandler, brands, getModelsForBrand]);
+  }, [registerActionHandler, startListening, waitingFor, brand, model, brands, getModelsForBrand, plate]);
+
 
   // ==========================================
-  // SUBMIT STANDARD (inalterato)
+  // SUBMIT STANDARD
   // ==========================================
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();

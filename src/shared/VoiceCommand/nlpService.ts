@@ -30,13 +30,10 @@ export async function initNlp() {
   // 1. REGOLE DI ESTRAZIONE ENTITÀ (NER)
   // ==========================================
   
-  // Targa: Usiamo una Regex sicura e case-insensitive (es. AA123BB o aa123bb)
-  nlp.addNerRegexRule('it', 'plate', /[A-Za-z]{2}\d{3}[A-Za-z]{2}/i);
+  // Targa (Infallibile)
+  nlp.addNerRegexRule('it', 'plate', /[A-Za-z]{2}[\s\-]*\d{3}[\s\-]*[A-Za-z]{2}/i);
 
-  // Marca e Modello (Trim Entities):
-  // Dato che il listino auto è sterminato e l'utente potrebbe pronunciare nomi nuovi,
-  // usiamo le regole di "ritaglio". Insegniamo al bot a estrarre tutto ciò che 
-  // si trova dopo determinate parole chiave.
+  // Manteniamo solo dei fallback basici per chi parla "da robot"
   nlp.addNerAfterCondition('it', 'brand', 'marca');
   nlp.addNerAfterCondition('it', 'model', 'modello');
   
@@ -54,6 +51,13 @@ export async function initNlp() {
   nlp.addDocument('it', 'nuova macchina marca %brand% modello %model% la targa è %plate%', ADD_VEHICLE);
   nlp.addDocument('it', 'aggiungi la targa %plate%', ADD_VEHICLE);
   nlp.addDocument('it', 'voglio inserire una nuova auto', ADD_VEHICLE);
+  // Frasi naturali, anche senza le parole "marca" o "modello"
+  nlp.addDocument('it', 'aggiungi un nuovo veicolo', ADD_VEHICLE);
+  nlp.addDocument('it', 'inserisci auto', ADD_VEHICLE);
+  nlp.addDocument('it', 'aggiungi una nuova %brand% %model%', ADD_VEHICLE);
+  nlp.addDocument('it', 'registra una %brand% targata %plate%', ADD_VEHICLE);
+  nlp.addDocument('it', 'ho comprato una %brand% %model%', ADD_VEHICLE);
+  nlp.addDocument('it', 'nuova macchina', ADD_VEHICLE);
 
   // ==========================================
   // 3. TRAINING DEL MODELLO
