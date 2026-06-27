@@ -30,11 +30,8 @@ export function AuthButton() {
 
   // Gestore del click sul bottone principale
   const handleMainAction = () => {
-    if (user) {
-      setIsMenuOpen((prev) => !prev); // Toggle del menu se loggato
-    } else {
-      signIn(); // Esegue il login se non loggato
-    }
+    // Ora apre o chiude SEMPRE il menu, a prescindere dal login
+    setIsMenuOpen((prev) => !prev); 
   };
 
   return (
@@ -46,8 +43,8 @@ export function AuthButton() {
           className="auth-button"
           onClick={handleMainAction}
           disabled={authLoading}
-          aria-label={user ? 'Apri menu utente' : 'Login con Google'}
-          title={user ? 'Menu utente' : 'Login'}
+          aria-label={user ? 'Apri menu utente' : 'Apri menu login'}
+          title={user ? 'Menu utente' : 'Menu'}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -64,13 +61,15 @@ export function AuthButton() {
         {user && user.displayName ? (
           <div className="auth-username">{user.displayName}</div>
         ) : (
-          <div className="auth-username">Log in</div>
+          <div className="auth-username">Menu</div>
         )}
 
-        {/* Renderizza il menu in absolute pos solo se aperto e l'utente esiste */}
-        {isMenuOpen && user && (
+        {/* Rimosso il controllo "&& user" per permettere al menu di aprirsi sempre */}
+        {isMenuOpen && (
           <AuthMenu 
+            user={user}
             onClose={() => setIsMenuOpen(false)} 
+            onLogin={signIn}
             onLogout={signOut} 
           />
         )}
