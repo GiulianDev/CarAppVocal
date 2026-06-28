@@ -24,7 +24,28 @@ export async function initNlp() {
   // Fondamentale: disabilitiamo il salvataggio su disco (siamo in un browser)
   nlp.settings.autoSave = false;
 
+  // ==========================================
+  // FIX 1: DISABILITARE LA PENALIZZAZIONE PAROLE SINGOLE
+  // ==========================================
+  // Impedisce a NLP.js di abbassare il punteggio (score)
+  // delle frasi composte da una sola parola (es. "sì", "no")
+  if (!nlp.settings.nlu) nlp.settings.nlu = {};
+  nlp.settings.nlu.useNoneFeature = false;
+
+
   nlp.addLanguage('it');
+
+
+  // ==========================================
+  // FIX 2: RIMOZIONE STOPWORDS CRITICHE
+  // ==========================================
+  // Impediamo a NLP.js di scartare i nostri comandi base
+  const stopwordsIt = container.get('StopwordsIt');
+  if (stopwordsIt && stopwordsIt.dictionary) {
+    stopwordsIt.dictionary = stopwordsIt.dictionary.filter(
+      (word: string) => !['si', 'sì', 'no'].includes(word)
+    );
+  }
 
   // ==========================================
   // 1. REGOLE DI ESTRAZIONE ENTITÀ (NER)

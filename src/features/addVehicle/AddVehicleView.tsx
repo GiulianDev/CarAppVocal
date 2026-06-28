@@ -14,14 +14,15 @@ export function AddVehicleView() {
     plate, setPlate, 
     brand, setBrand, 
     model, setModel, 
-    error, performSave 
+    error, performSave,
+    resetForm
   } = useVehicleForm();
 
   // 3. Orchestrazione Vocale (Il Cervello NLP)
   useAddVehicleVoiceFlow({
     catalog: { brands, getModelsForBrand },
     form: { plate, brand, model },
-    actions: { setPlate, setBrand, setModel, performSave }
+    actions: { setPlate, setBrand, setModel, performSave, resetForm }
   });
 
   // 4. Gestione Eventi UI manuali
