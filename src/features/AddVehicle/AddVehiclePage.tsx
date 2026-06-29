@@ -5,7 +5,7 @@ import { useVehicleCatalog } from './hook/useVehicleCatalog';
 import { useVehicleForm } from './hook/useAddVehicleForm';
 import { useAddVehicleVoiceFlow } from './hook/useAddVehicleVoiceFlow';
 
-export function AddVehicleView() {
+export function AddVehiclePage() {
   // 1. Dati dal catalogo
   const { brands, getModelsForBrand, isLoading } = useVehicleCatalog();
 
@@ -32,7 +32,7 @@ export function AddVehicleView() {
   };
 
   return (
-    <div className="w-full max-w-md p-6 sm:p-8 bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative z-10 animate-in fade-in zoom-in-95 duration-300">
+    <div>
       
       <div className="mb-8 text-center sm:text-left">
         <h1 className="text-2xl font-bold tracking-tight text-white mb-2 bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">

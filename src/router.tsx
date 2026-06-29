@@ -1,10 +1,10 @@
 import { Navigate } from 'react-router-dom';
 import App from './App';
-import { AddVehicleView } from './features/AddVehicle/AddVehicleView';
+import { AddVehiclePage } from './features/AddVehicle/AddVehiclePage';
 import { VehicleDetailPage } from './features/VehicleDetail/VehicleDetailPage';
 import { GaragePage } from './features/GaragePage/GaragePage';
-import { CalendarPage } from './features/VehicleDetail/CalendarPage';
-import { VehicleEventPage } from './features/EventManagment/VehicleEventPage';
+import { CalendarPage } from './features/Calendar/CalendarPage';
+import { VehicleEventsPage } from './features/Events/VehicleEventsPage';
 
 /**
  * DEFINIZIONE CENTRALIZZATA DELLE ROUTE
@@ -40,12 +40,12 @@ export const routes = [
       },
       {
         path: '/detail/:id/event/new',
-        element: <VehicleEventPage />,
+        element: <VehicleEventsPage />,
         handle: { title: 'Nuovo Evento' },
       },
       {
         path: '/detail/:id/event/:eventId',
-        element: <VehicleEventPage />,
+        element: <VehicleEventsPage />,
         handle: { title: 'Dettaglio ed Editor Evento' },
       },
       {
@@ -54,7 +54,7 @@ export const routes = [
       },
       {
         path: '/add-vehicle/',
-        element: <AddVehicleView />,
+        element: <AddVehiclePage />,
         handle: { title: 'Aggiunngi veicolo' },
       },
       {

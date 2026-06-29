@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useGarage } from '../../shared/Garage/useGarage';
 import { EventForm, type EventFormData, type EventFormMode } from './components/EventForm';
 
-export function VehicleEventPage() {
+export function VehicleEventsPage() {
   const { id, eventId } = useParams<{ id: string; eventId?: string }>();
   const navigate = useNavigate();
   const { addEventToVehicle, updateEvent, deleteEvent, getVehicle, isLoading } = useGarage();
@@ -54,7 +54,7 @@ export function VehicleEventPage() {
   };
 
   return (
-    <div className="w-full max-w-md p-6 sm:p-8 bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-in fade-in duration-200">
+    <div>
       
       {/* Intestazione Contestuale */}
       <div className="mb-6">

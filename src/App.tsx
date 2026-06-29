@@ -25,7 +25,9 @@ export default function App() {
       <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 relative z-10 w-full h-full">
 
         {/* OUTLET - Qui il router renderizza le rotte figlie */}
-        <Outlet />
+        <div className="w-full max-w-3xl p-6 sm:p-8 bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-in fade-in duration-300">
+          <Outlet />
+        </div>
         
       </main>
 

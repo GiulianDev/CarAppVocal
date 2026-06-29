@@ -31,8 +31,8 @@ export function GaragePage() {
   
 
   return (
-    // Rimosso il wrapper min-h-screen, manteniamo solo la larghezza e centratura
-    <div className="w-full max-w-4xl mx-auto animate-in fade-in duration-300">
+
+    <div>
       
       {/* Header con titolo, Calendario e Svuota Tutto */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-zinc-800/80 mb-8">
