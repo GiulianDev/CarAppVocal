@@ -85,7 +85,7 @@ export function useGarage() {
     */
   };
 
-  // 👈 NUOVA FUNZIONE: Aggiunge un evento a un veicolo
+  // Aggiunge un evento a un veicolo
   const addEventToVehicle = (carId: string, eventData: Omit<VehicleEvent, 'id'>) => {
     const updatedCars = cars.map(car => {
       if (car.id === carId) {
@@ -116,13 +116,49 @@ export function useGarage() {
     */
   };
 
+  // Modifica un evento esistente
+  const updateEvent = (carId: string, eventId: string, updatedData: Partial<VehicleEvent>) => {
+    const updatedCars = cars.map(car => {
+      if (car.id === carId && car.events) {
+        const updatedEvents = car.events.map(ev => 
+          ev.id === eventId ? { ...ev, ...updatedData } : ev
+        );
+        // Riordina nel caso la data sia stata cambiata
+        updatedEvents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return { ...car, events: updatedEvents };
+      }
+      return car;
+    });
+
+    setCars(updatedCars);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCars));
+  };
+
+
+  // Elimina un evento specifico
+  const deleteEvent = (carId: string, eventId: string) => {
+    const updatedCars = cars.map(car => {
+      if (car.id === carId && car.events) {
+        const updatedEvents = car.events.filter(ev => ev.id !== eventId);
+        return { ...car, events: updatedEvents };
+      }
+      return car;
+    });
+
+    setCars(updatedCars);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCars));
+  };
+
+
   return { 
     cars, 
     getVehicle, 
     addVehicle, 
     deleteVehicle, 
     resetGarage, 
-    addEventToVehicle, // 👈 Esponiamo la funzione al resto dell'app
+    addEventToVehicle,
+    updateEvent,
+    deleteEvent,
     isLoading 
   };
 }

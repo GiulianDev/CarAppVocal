@@ -3,8 +3,8 @@ import App from './App';
 import { AddVehicleView } from './features/AddVehicle/AddVehicleView';
 import { VehicleDetailView } from './features/vehicleDetail/VehicleDetailView';
 import { GaragePage } from './features/GaragePage/GaragePage';
-import { AddEventView } from './features/vehicleDetail/AddEventView';
 import { CalendarPage } from './features/vehicleDetail/CalendarPage';
+import { VehicleEventPage } from './features/EventManagment/VehicleEventPage';
 
 /**
  * DEFINIZIONE CENTRALIZZATA DELLE ROUTE
@@ -38,11 +38,16 @@ export const routes = [
         element: <VehicleDetailView />,
         handle: { title: 'Dettaglio veicolo' },
       },
-      // {
-      //   path: '/detail/:id/add-event',
-      //   element: <AddEventView />,
-      //   handle: { title: 'Aggiunta evento' },
-      // },
+      {
+        path: '/detail/:id/event/new',
+        element: <VehicleEventPage />,
+        handle: { title: 'Nuovo Evento' },
+      },
+      {
+        path: '/detail/:id/event/:eventId',
+        element: <VehicleEventPage />,
+        handle: { title: 'Dettaglio ed Editor Evento' },
+      },
       {
         path: '/detail',
         element: <Navigate to="/add-vehicle" replace />,
