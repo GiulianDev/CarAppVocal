@@ -13,6 +13,7 @@
     "@capacitor-community/speech-recognition": "^7.0.1",
     "@capacitor/android": "^8.4.1",
     "@capacitor/core": "^8.4.1",
+    "@ebarooni/capacitor-calendar": "^8.2.0",
     "@nlpjs/basic": "^5.0.0-alpha.5",
     "@nlpjs/lang-it": "^5.0.0-alpha.5",
     "@tailwindcss/vite": "^4.3.1",

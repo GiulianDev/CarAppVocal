@@ -2,16 +2,16 @@
 import { useEffect, useState } from "react";
 import type { Vehicle, VehicleEvent } from "./vehicle";
 
-const STORAGE_KEY = 'cars';
+const STORAGE_KEY = 'vehicles';
 
 export function useGarage() {
 
-  const [cars, setCars] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem('cars');
-    setCars(saved ? JSON.parse(saved) : []);
+    const saved = localStorage.getItem('vehicles');
+    setVehicles(saved ? JSON.parse(saved) : []);
     setIsLoading(false);
 
     /* 💡 FUTURO CON FIREBASE & FIRESTORE:
@@ -29,23 +29,23 @@ export function useGarage() {
 
   const getVehicle = (id: string | undefined) => {    
     if (!id) return null;
-    return cars.find((c) => c.id === id) || null;
+    return vehicles.find((c) => c.id === id) || null;
   };
 
   const addVehicle = (plate: string, brand: string, model: string) => {    
     try {
-      const newCar: Vehicle = {
+      const newVehicle: Vehicle = {
         id: crypto.randomUUID(),
         plate: plate.toUpperCase(),
         brand: `${brand} ${model}`,
         addedAt: new Date().toISOString(),
         events: [] // 👈 Aggiunto: le nuove auto nascono con l'array pronto
       };
-      const updated = [...cars, newCar];
-      setCars(updated);
+      const updated = [...vehicles, newVehicle];
+      setVehicles(updated);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      console.log('Add vehicle success: ', newCar);
-      return newCar;
+      console.log('Add vehicle success: ', newVehicle);
+      return newVehicle;
     } finally {
       setIsLoading(false); // Termina il processo (anche in caso di errore)
     }
@@ -53,7 +53,7 @@ export function useGarage() {
     /* 💡 FUTURO CON FIRESTORE:
     if (user) {
       // Salva sul database cloud di Firebase
-      await updateDoc(doc(db, "users", user.uid), { cars: updatedCars });
+      await updateDoc(doc(db, "users", user.uid), { cars: updatedVehicles });
     }
     */
 
@@ -62,20 +62,20 @@ export function useGarage() {
 
 
   const deleteVehicle = (id: string) => {
-    const updatedCars = cars.filter(car => car.id !== id);
-    setCars(updatedCars);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCars));
+    const updatedVehicles = vehicles.filter(car => car.id !== id);
+    setVehicles(updatedVehicles);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedVehicles));
     setIsLoading(false);
 
     /* 💡 FUTURO CON FIRESTORE:
     if (user) {
-      await updateDoc(doc(db, "users", user.uid), { cars: updatedCars });
+      await updateDoc(doc(db, "users", user.uid), { cars: updatedVehicles });
     }
     */
   };
 
   const resetGarage = () => {
-    setCars([]); 
+    setVehicles([]); 
     localStorage.removeItem(STORAGE_KEY); 
     setIsLoading(false);
     /* 💡 FUTURO CON FIRESTORE:
@@ -87,7 +87,7 @@ export function useGarage() {
 
   // Aggiunge un evento a un veicolo
   const addEventToVehicle = (carId: string, eventData: Omit<VehicleEvent, 'id'>) => {
-    const updatedCars = cars.map(car => {
+    const updatedVehicles = vehicles.map(car => {
       if (car.id === carId) {
         const newEvent: VehicleEvent = {
           ...eventData,
@@ -106,19 +106,19 @@ export function useGarage() {
       return car;
     });
 
-    setCars(updatedCars);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCars));
+    setVehicles(updatedVehicles);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedVehicles));
     
     /* 💡 FUTURO CON FIRESTORE:
     if (user) {
-      await updateDoc(doc(db, "users", user.uid), { cars: updatedCars });
+      await updateDoc(doc(db, "users", user.uid), { cars: updatedVehicles });
     }
     */
   };
 
   // Modifica un evento esistente
   const updateEvent = (carId: string, eventId: string, updatedData: Partial<VehicleEvent>) => {
-    const updatedCars = cars.map(car => {
+    const updatedVehicles = vehicles.map(car => {
       if (car.id === carId && car.events) {
         const updatedEvents = car.events.map(ev => 
           ev.id === eventId ? { ...ev, ...updatedData } : ev
@@ -130,14 +130,14 @@ export function useGarage() {
       return car;
     });
 
-    setCars(updatedCars);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCars));
+    setVehicles(updatedVehicles);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedVehicles));
   };
 
 
   // Elimina un evento specifico
   const deleteEvent = (carId: string, eventId: string) => {
-    const updatedCars = cars.map(car => {
+    const updatedVehicles = vehicles.map(car => {
       if (car.id === carId && car.events) {
         const updatedEvents = car.events.filter(ev => ev.id !== eventId);
         return { ...car, events: updatedEvents };
@@ -145,13 +145,13 @@ export function useGarage() {
       return car;
     });
 
-    setCars(updatedCars);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCars));
+    setVehicles(updatedVehicles);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedVehicles));
   };
 
 
   return { 
-    cars, 
+    vehicles, 
     getVehicle, 
     addVehicle, 
     deleteVehicle, 

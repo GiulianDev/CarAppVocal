@@ -13,7 +13,7 @@ interface ExtendedEvent extends VehicleEvent {
 
 export function CalendarPage() {
   const navigate = useNavigate();
-  const { cars, isLoading } = useGarage();
+  const { vehicles, isLoading } = useGarage();
   
   // Stato per il filtro attivo
   const [activeFilter, setActiveFilter] = useState<EventCategory | 'tutti'>('tutti');
@@ -23,12 +23,12 @@ export function CalendarPage() {
   }
 
   // 1. Estraiamo tutti gli eventi da tutti i veicoli iniettando i dati dell'auto di appartenenza
-  const allEvents: ExtendedEvent[] = cars.flatMap(car => 
-    (car.events || []).map((event: any) => ({
+  const allEvents: ExtendedEvent[] = vehicles.flatMap(vehicle => 
+    (vehicle.events || []).map((event: any) => ({
       ...event,
-      carId: car.id,
-      carBrand: car.brand,
-      carPlate: car.plate
+      vehicleId: vehicle.id,
+      vehicleBrand: vehicle.brand,
+      vehiclePlate: vehicle.plate
     }))
   );
 

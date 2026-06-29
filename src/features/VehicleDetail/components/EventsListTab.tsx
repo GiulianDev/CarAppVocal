@@ -19,21 +19,19 @@ export function EventsListTab({ vehicle }: EventsListTabProps) {
 
   const events = vehicle.events || [];
 
-  if (events.length === 0) {
-    return (
-      <p className="text-xs text-zinc-500 text-center py-6 border border-dashed border-zinc-800 rounded-xl">
-        Nessun evento registrato.
-      </p>
-    );
-  }
-
   return (
     <>
       <div className="flex justify-between items-center">
         <h2 className="text-sm font-semibold text-zinc-300">Cronologia Attività</h2>
         <Button onClick={() => navigate(`/detail/${vehicle.id}/event/new`)}>+ Evento</Button>
       </div>
-                
+
+      {events.length < 1 && (
+        <p className="text-xs text-zinc-500 text-center py-6 border border-dashed border-zinc-800 rounded-xl">
+        Nessun evento registrato.
+      </p>
+      )}
+       
       {events.map(event => (
         <button
           key={event.id}

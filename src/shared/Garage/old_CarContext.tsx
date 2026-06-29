@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { Car } from './vehicle';
+import type { Vehicle } from './vehicle';
 
 interface CarContextType {
-  cars: Car[];
+  cars: Vehicle[];
   isLoading: boolean;
   isAdding: boolean;          // 👈 Nuovo: Stato UI globale
   setIsAdding: (val: boolean) => void; // 👈 Nuovo: Azione UI globale
@@ -14,7 +14,7 @@ interface CarContextType {
 const CarContext = createContext<CarContextType | undefined>(undefined);
 
 export const CarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [cars, setCars] = useState<Car[]>([]);
+  const [cars, setCars] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -42,7 +42,7 @@ export const CarProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [/* user */]);
 
   const addCar = (plate: string, brand: string, model: string) => {
-    const newCar: Car = {
+    const newCar: Vehicle = {
       id: crypto.randomUUID(),
       plate: plate.toUpperCase().trim(),
       brand: `${brand.trim()} ${model.trim()}`,

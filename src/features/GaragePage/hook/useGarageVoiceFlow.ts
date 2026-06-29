@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useVoiceContext } from '../../../shared/VoiceCommand/VoiceContext';
 import { useSpeechAction } from '../../../shared/VoiceCommand/useSpeechAction';
-import type { Car } from '../../../shared/Garage/vehicle';
+import type { Vehicle } from '../../../shared/Garage/vehicle';
 
 interface GarageVoiceFlowProps {
-  cars: Car[];
+  vehicles: Vehicle[];
   actions: {
     deleteVehicle: (id: string) => void;
     resetGarage: () => void;
@@ -15,7 +15,7 @@ interface GarageVoiceFlowProps {
 // Stati di attesa per guidare la conversazione
 type WaitState = 'confirm_clean' | 'confirm_delete' | 'delete_disambiguate_plate' | 'delete_disambiguate_model_or_plate' | null;
 
-export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
+export function useGarageVoiceFlow({ vehicles, actions }: GarageVoiceFlowProps) {
   const [waitingFor, setWaitingFor] = useState<WaitState>(null);
   // pendingValue ci serve per salvare temporaneamente l'ID dell'auto che stiamo per eliminare
   const [pendingValue, setPendingValue] = useState<string | null>(null);
@@ -89,7 +89,7 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
           const userPlate = extractPlate(nlpResult.utterance);
           
           if (userPlate) {
-            const targetCar = cars.find(c => c.plate === userPlate);
+            const targetCar = vehicles.find(c => c.plate === userPlate);
             if (targetCar) {
               setPendingValue(targetCar.id);
               askAndListen(`Ho trovato la ${targetCar.brand}. Confermi l'eliminazione?`, 'confirm_delete');
@@ -108,7 +108,7 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
           
           // Caso A: L'utente ha preferito dire la targa
           if (userPlate) {
-            const targetCar = cars.find(c => c.plate === userPlate);
+            const targetCar = vehicles.find(c => c.plate === userPlate);
             if (targetCar) {
               setPendingValue(targetCar.id);
               askAndListen(`Ho trovato la ${targetCar.brand}. Confermi l'eliminazione?`, 'confirm_delete');
@@ -120,25 +120,25 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
           }
 
           // Caso B: Non ha detto una targa, presumiamo abbia detto un modello
-          let matchedCars = cars.filter(c => {
+          let matchedVehicles = vehicles.filter(c => {
             const brandLower = c.brand.toLowerCase();
             const brandWords = brandLower.split(/\s+/).filter(w => w.length > 2);
             return brandWords.some(bw => cleanAnswer.includes(bw));
           });
 
           // Stessa ottimizzazione: cerchiamo match esatti completi
-          if (matchedCars.length > 1) {
-            const exactMatches = matchedCars.filter(c => cleanAnswer.includes(c.brand.toLowerCase()));
+          if (matchedVehicles.length > 1) {
+            const exactMatches = matchedVehicles.filter(c => cleanAnswer.includes(c.brand.toLowerCase()));
             if (exactMatches.length === 1) {
-              matchedCars = exactMatches;
+              matchedVehicles = exactMatches;
             }
           }
 
           // Risolviamo l'input del modello
-          if (matchedCars.length === 1) {
+          if (matchedVehicles.length === 1) {
             // Trovata! Ha detto il modello e c'è solo questa.
-            setPendingValue(matchedCars[0].id);
-            askAndListen(`Vuoi eliminare la ${matchedCars[0].brand}?`, 'confirm_delete');
+            setPendingValue(matchedVehicles[0].id);
+            askAndListen(`Vuoi eliminare la ${matchedVehicles[0].brand}?`, 'confirm_delete');
           } else {
             // Se ancora non la trova, oppure ci sono ancora più veicoli (es. ha due Fiat Panda identiche),
             // scatta il paracadute: chiediamo forzatamente la targa.
@@ -155,7 +155,7 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
 
       // --- ELIMINA TUTTO ---
       if (nlpResult.intent === 'intent.delete_all') {
-        if (cars.length === 0) {
+        if (vehicles.length === 0) {
           speakOnly("Il tuo garage è già vuoto.");
           return;
         }
@@ -166,7 +166,7 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
       // --- ELIMINA SINGOLO VEICOLO ---
       // --- ELIMINA SINGOLO VEICOLO ---
       if (nlpResult.intent === 'intent.delete_vehicle') {
-        if (cars.length === 0) {
+        if (vehicles.length === 0) {
           speakOnly("Non hai nessun veicolo nel garage.");
           return;
         }
@@ -174,7 +174,7 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
         // 1. Controlliamo subito se l'utente ha detto direttamente la targa (infallibile)
         const userPlate = extractPlate(nlpResult.utterance);
         if (userPlate) {
-          const targetCar = cars.find(c => c.plate === userPlate);
+          const targetCar = vehicles.find(c => c.plate === userPlate);
           if (targetCar) {
             setPendingValue(targetCar.id);
             askAndListen(`Sei sicuro di voler eliminare la ${targetCar.brand}?`, 'confirm_delete');
@@ -183,7 +183,7 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
         }
 
         // 2. Se non ha detto la targa, facciamo un match "contains" sul campo brand (che ora include marca e modello)
-        let matchedCars = cars.filter(c => {
+        let matchedVehicles = vehicles.filter(c => {
           const brandLower = c.brand.toLowerCase();
           // Dividiamo "Fiat Panda" in ["fiat", "panda"] (ignorando paroline troppo corte)
           const brandWords = brandLower.split(/\s+/).filter(w => w.length > 2);
@@ -195,25 +195,25 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
         // OTTIMIZZAZIONE: Se l'utente dice "Fiat Panda", ma abbiamo anche una "Fiat Punto",
         // il codice sopra matcherebbe entrambe (perché entrambe contengono "Fiat").
         // Quindi se troviamo più veicoli, controlliamo se c'è un match della stringa COMPLETA.
-        if (matchedCars.length > 1) {
-          const exactMatches = matchedCars.filter(c => cleanAnswer.includes(c.brand.toLowerCase()));
+        if (matchedVehicles.length > 1) {
+          const exactMatches = matchedVehicles.filter(c => cleanAnswer.includes(c.brand.toLowerCase()));
           if (exactMatches.length === 1) {
-            matchedCars = exactMatches;
+            matchedVehicles = exactMatches;
           }
         }
 
         // 3. Risoluzione dei risultati
-        if (matchedCars.length === 0) {
+        if (matchedVehicles.length === 0) {
           speakOnly("Non ho trovato nessun veicolo con questo nome nel tuo garage.");
         } 
-        else if (matchedCars.length === 1) {
+        else if (matchedVehicles.length === 1) {
           // Trovata un'unica auto! Salviamo l'id e chiediamo conferma.
-          setPendingValue(matchedCars[0].id);
-          askAndListen(`Vuoi eliminare la ${matchedCars[0].brand}?`, 'confirm_delete');
+          setPendingValue(matchedVehicles[0].id);
+          askAndListen(`Vuoi eliminare la ${matchedVehicles[0].brand}?`, 'confirm_delete');
         } 
         else {
           // Ci sono più auto con lo stesso nome (es. 2 Panda, o ha detto solo "Fiat")
-          askAndListen(`Ho trovato ${matchedCars.length} veicoli che corrispondono. Dimmi il modello esatto oppure la targa.`, 'delete_disambiguate_model_or_plate');        }
+          askAndListen(`Ho trovato ${matchedVehicles.length} veicoli che corrispondono. Dimmi il modello esatto oppure la targa.`, 'delete_disambiguate_model_or_plate');        }
         return;
       }
 
@@ -228,7 +228,7 @@ export function useGarageVoiceFlow({ cars, actions }: GarageVoiceFlowProps) {
 
     return cleanup;
   }, [
-    registerActionHandler, waitingFor, pendingValue, cars, actions, askAndListen, speakOnly
+    registerActionHandler, waitingFor, pendingValue, vehicles, actions, askAndListen, speakOnly
   ]);
 
   return { waitingFor };

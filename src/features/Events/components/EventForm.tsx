@@ -9,6 +9,7 @@ export interface EventFormData {
   category: EventCategory;
   date: string;
   notes?: string;
+  reminderDate?: string; // 👈 Aggiunto campo per il promemoria
 }
 
 interface EventFormProps {
@@ -43,15 +44,22 @@ export function EventForm({
   const [category, setCategory] = useState<EventCategory>(initialData?.category || 'manutenzione');
   const [date, setDate] = useState(initialData?.date || getTodayDateString());
   const [notes, setNotes] = useState(initialData?.notes || '');
+  
+  // 👈 Nuovi stati per gestire il promemoria
+  const [hasReminder, setHasReminder] = useState(!!initialData?.reminderDate);
+  const [reminderDate, setReminderDate] = useState(initialData?.reminderDate || '');
+  
   const [error, setError] = useState('');
 
-  // Se initialData cambia (es. il padre carica i dati asincronamente), aggiorniamo lo stato
+  // Se initialData cambia aggiorniamo lo stato
   useEffect(() => {
     if (initialData) {
       setTitle(initialData.title);
       setCategory(initialData.category);
       setDate(initialData.date);
       setNotes(initialData.notes || '');
+      setHasReminder(!!initialData.reminderDate);
+      setReminderDate(initialData.reminderDate || '');
     }
   }, [initialData]);
 
@@ -63,16 +71,23 @@ export function EventForm({
       setError('Inserisci un titolo o una descrizione per l\'evento.');
       return;
     }
+    if (hasReminder && !reminderDate) {
+      setError('Hai attivato il promemoria ma non hai inserito una data.');
+      return;
+    }
+    
     setError('');
     onSubmit({
       title: title.trim(),
       category,
       date,
       notes: notes.trim() || undefined,
+      // Passiamo il reminderDate solo se la spunta è attiva
+      reminderDate: hasReminder ? reminderDate : undefined,
     });
   };
 
-  // Classi dinamiche per gli input in base allo stato
+  // Classi dinamiche per gli input
   const inputBaseClasses = "w-full rounded-xl px-4 py-2.5 text-sm transition-all";
   const inputActiveClasses = "bg-zinc-900/50 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-violet-500/30";
   const inputViewClasses = "bg-transparent border-transparent text-zinc-300 font-medium px-0 pointer-events-none";
@@ -126,6 +141,40 @@ export function EventForm({
           onChange={(e) => setDate(e.target.value)}
           className={`${currentInputClasses} ${isViewMode ? '' : 'cursor-pointer'}`}
         />
+      </div>
+
+      {/* 👈 Sezione Promemoria Calendario */}
+      <div className="flex flex-col gap-3 p-4 bg-zinc-900/30 border border-zinc-800/50 rounded-xl">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-zinc-300 flex items-center gap-2">
+            🔔 Aggiungi al Calendario
+          </label>
+          {/* Mostriamo la checkbox solo se possiamo modificarla */}
+          {!isViewMode && (
+            <input
+              type="checkbox"
+              checked={hasReminder}
+              onChange={(e) => setHasReminder(e.target.checked)}
+              className="w-4 h-4 accent-indigo-500 rounded bg-zinc-800 border-zinc-700"
+            />
+          )}
+        </div>
+        
+        {/* Mostriamo il campo data se la checkbox è attiva, o se siamo in view e c'è già una data */}
+        {(hasReminder || (isViewMode && reminderDate)) && (
+          <div className="flex flex-col gap-1.5 pt-2 border-t border-zinc-800/50">
+            <label className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+              Data Promemoria
+            </label>
+            <input
+              type="date"
+              value={reminderDate}
+              readOnly={isViewMode}
+              onChange={(e) => setReminderDate(e.target.value)}
+              className={`${currentInputClasses} ${isViewMode ? '' : 'cursor-pointer'} border-indigo-500/20`}
+            />
+          </div>
+        )}
       </div>
 
       {/* Campo Note */}

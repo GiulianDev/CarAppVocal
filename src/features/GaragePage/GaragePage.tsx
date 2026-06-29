@@ -15,11 +15,11 @@ export function GaragePage() {
   
   const navigate = useNavigate();
   
-  const { cars, resetGarage, deleteVehicle } = useGarage();
+  const { vehicles, resetGarage, deleteVehicle } = useGarage();
 
     // 3. Orchestrazione Vocale (Il Cervello NLP)
     useGarageVoiceFlow({
-      cars: cars,
+      vehicles: vehicles,
       actions: { deleteVehicle, resetGarage, goToAddVehicle: handleGoToAddVehicle }
     });
 
@@ -38,7 +38,7 @@ export function GaragePage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-zinc-800/80 mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-100">La tua Flotta</h1>
-          <p className="text-sm text-zinc-400 mt-1">Gestisci i tuoi {cars.length} veicoli configurati</p>
+          <p className="text-sm text-zinc-400 mt-1">Gestisci i tuoi {vehicles.length} veicoli configurati</p>
         </div>
 
         <div className="w-auto flex flex-wrap gap-3">
@@ -63,19 +63,19 @@ export function GaragePage() {
 
       {/* Griglia delle auto */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {cars.map((car) => (
+        {vehicles.map((vehicle) => (
           <div 
-            key={car.id} 
+            key={vehicle.id} 
             className="bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/60 rounded-xl p-5 flex flex-col justify-between hover:border-zinc-700/60 transition-all duration-200"
-            onClick={() => handleGoToDetail(car.id)}
+            onClick={() => handleGoToDetail(vehicle.id)}
           >
             <div className="flex items-start justify-between gap-2">
               <h3 className="font-bold text-lg text-zinc-200 tracking-tight">
-                {car.brand}
+                {vehicle.brand}
               </h3>
               {/* Targa */}
               <span className="font-mono bg-zinc-800 text-indigo-400 px-3 py-1 rounded-md text-xs font-bold tracking-widest border border-zinc-700/50 shadow-inner">
-                {car.plate}
+                {vehicle.plate}
               </span>
             </div>
             
@@ -85,8 +85,8 @@ export function GaragePage() {
                 onClick={(e) => { // 1. Ricevi l'evento 'e'
                   e.stopPropagation(); // 2. FERMA LA PROPAGAZIONE al genitore!
                   
-                  if (confirm(`Vuoi eliminare ${car.brand}?`)) {
-                    deleteVehicle(car.id);
+                  if (confirm(`Vuoi eliminare ${vehicle.brand}?`)) {
+                    deleteVehicle(vehicle.id);
                   }
                 }}
               >

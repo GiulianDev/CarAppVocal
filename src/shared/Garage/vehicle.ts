@@ -8,6 +8,7 @@ export interface VehicleEvent {
   date: string;           // Salviamo come stringa ISO (es: "2026-06-29")
   category: EventCategory;
   notes?: string;         // Dettagli opzionali
+  reminderDate?: string;
 }
 
 export interface Vehicle {
