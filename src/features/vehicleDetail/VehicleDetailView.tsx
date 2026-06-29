@@ -3,76 +3,164 @@ import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useGarage } from '../../shared/Garage/useGarage';
 import { Button } from '../../shared/ui/Button';
-import type { EventCategory } from '../../shared/Garage/car';
+import type { EventCategory, VehicleEvent } from '../../shared/Garage/car';
 
+// ==========================================
+// UTILITIES E HELPER CONDIVISI
+// ==========================================
+const formatDate = (dateString: string) => {
+  try {
+    return new Date(dateString).toLocaleDateString('it-IT', { 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  } catch {
+    return dateString;
+  }
+};
+
+const getCategoryColor = (cat: EventCategory) => {
+  switch (cat) {
+    case 'manutenzione': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+    case 'documenti': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+    case 'riparazione': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+    case 'altro': return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+    default: return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+  }
+};
+
+
+// ==========================================
+// COMPONENTE 1: TAB LISTA CRONOLOGICA
+// ==========================================
+interface EventsListTabProps {
+  events: VehicleEvent[];
+  carId: string;
+  onNavigateToEvent: (url: string) => void;
+}
+
+function EventsListTab({ events, carId, onNavigateToEvent }: EventsListTabProps) {
+  if (events.length === 0) {
+    return (
+      <p className="text-xs text-zinc-500 text-center py-6 border border-dashed border-zinc-800 rounded-xl">
+        Nessun evento registrato.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      {events.map(event => (
+        <button
+          key={event.id}
+          type="button"
+          onClick={() => onNavigateToEvent(`/detail/${carId}/event/${event.id}`)}
+          className="w-full text-left bg-zinc-900/40 border border-zinc-800/60 hover:border-zinc-700/80 rounded-xl p-3 flex flex-col gap-1 transition-all group focus:outline-none focus:border-indigo-500/50"
+        >
+          <div className="flex justify-between items-start gap-2">
+            <span className="font-semibold text-xs text-zinc-200 group-hover:text-indigo-400 transition-colors">
+              {event.title}
+            </span>
+            <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border ${getCategoryColor(event.category)}`}>
+              {event.category}
+            </span>
+          </div>
+          <div className="flex justify-between text-[11px] text-zinc-500 w-full">
+            <span>{formatDate(event.date)}</span>
+            {event.notes && <span className="italic text-zinc-400 truncate max-w-[150px]">{event.notes}</span>}
+          </div>
+        </button>
+      ))}
+    </>
+  );
+}
+
+
+// ==========================================
+// COMPONENTE 2: TAB CALENDARIO / AGENDA
+// ==========================================
+interface EventsCalendarTabProps {
+  events: VehicleEvent[];
+  carId: string;
+  onNavigateToEvent: (url: string) => void;
+}
+
+function EventsCalendarTab({ events, carId, onNavigateToEvent }: EventsCalendarTabProps) {
+  if (events.length === 0) {
+    return (
+      <p className="text-xs text-zinc-500 text-center py-6 border border-dashed border-zinc-800 rounded-xl">
+        Nessuna scadenza trovata per questo filtro.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      {events.map(event => (
+        <button
+          key={event.id}
+          type="button"
+          onClick={() => onNavigateToEvent(`/detail/${carId}/event/${event.id}`)}
+          className="w-full flex items-center justify-between p-2.5 bg-zinc-950/40 border border-zinc-800/50 hover:border-zinc-700/80 rounded-xl text-left transition-all group focus:outline-none focus:border-indigo-500/50"
+        >
+          <div className="flex flex-col">
+            <span className="text-xs font-medium text-zinc-300 group-hover:text-indigo-400 transition-colors">
+              {event.title}
+            </span>
+            <span className="text-[10px] text-zinc-500 font-mono">
+              {formatDate(event.date)}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${
+              event.category === 'manutenzione' ? 'bg-emerald-400' : 
+              event.category === 'riparazione' ? 'bg-rose-400' : 
+              event.category === 'documenti' ? 'bg-amber-400' : 'bg-zinc-400'
+            }`} />
+            <span className="text-[10px] text-zinc-600 group-hover:text-zinc-400 transition-colors ml-1">
+              →
+            </span>
+          </div>
+        </button>
+      ))}
+    </>
+  );
+}
+
+
+// ==========================================
+// COMPONENTE PRINCIPALE (CONTENITORE)
+// ==========================================
 export function VehicleDetailView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
-  // Recuperiamo solo getVehicle e isLoading. addEventToVehicle non serve più qui
   const { getVehicle, isLoading } = useGarage();
 
-  // Stati per la gestione dei Tab e dei Filtri dell'agenda
   const [activeTab, setActiveTab] = useState<'lista' | 'calendario'>('lista');
   const [activeFilter, setActiveFilter] = useState<EventCategory | 'tutti'>('tutti');
 
-  if (!id) {
-    return <Navigate to="/" replace />;
-  }
-
-  if (isLoading) {
-    return <div className="p-8 text-center text-zinc-400 font-mono">Caricamento veicolo...</div>;
-  }
+  if (!id) return <Navigate to="/" replace />;
+  if (isLoading) return <div className="p-8 text-center text-zinc-400 font-mono">Caricamento veicolo...</div>;
 
   const car = getVehicle(id);
-  if (!car) {
-    return <div className="p-8 text-center text-zinc-400">Veicolo non trovato.</div>;
-  }
+  if (!car) return <div className="p-8 text-center text-zinc-400">Veicolo non trovato.</div>;
 
-  // Estrazione sicura degli eventi
   const vehicleEvents = car.events || [];
-
-  // Filtro logico per il tab calendario
   const filteredEvents = activeFilter === 'tutti' 
     ? vehicleEvents 
     : vehicleEvents.filter(e => e.category === activeFilter);
 
-  // 1. HELPER DI FORMATTAZIONE DATA (Risolve il problema di compilazione)
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString('it-IT', { 
-        day: 'numeric', 
-        month: 'short', 
-        year: 'numeric' 
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
-  // 2. HELPER PER I COLORI DELLE CATEGORIE (Incluso 'altro' definito nel file car.ts)
-  const getCategoryColor = (cat: EventCategory) => {
-    switch (cat) {
-      case 'manutenzione': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      case 'documenti': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'riparazione': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-      case 'altro': return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
-      default: return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
-    }
-  };
-
   return (
     <div className="w-full max-w-md p-6 sm:p-8 bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-in fade-in duration-200">
       
-      {/* Header */}
+      {/* Informazioni Veicolo */}
       <div className="flex justify-between items-center mb-4">
         <span className="bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full text-xs font-semibold border border-indigo-500/20">
           Scheda Veicolo
         </span>
-        <button
-          onClick={() => navigate('/garage')}
-          className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-        >
+        <button onClick={() => navigate('/garage')} className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
           ← Lista Garage
         </button>
       </div>
@@ -98,50 +186,15 @@ export function VehicleDetailView() {
         </button>
       </div>
 
-      {/* TAB 1: LISTA CRONOLOGICA EVENTI */}
-      {activeTab === 'lista' && (
-        <div className="space-y-4">
+      {/* CONTROLLI DINAMICI (Fuori dal contenitore di scroll per restare fissi in alto) */}
+      <div className="mb-4">
+        {activeTab === 'lista' ? (
           <div className="flex justify-between items-center">
             <h2 className="text-sm font-semibold text-zinc-300">Cronologia Attività</h2>
             <Button onClick={() => navigate(`/detail/${car.id}/event/new`)}>+ Evento</Button>
           </div>
-
-          <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
-            {vehicleEvents.length === 0 ? (
-              <p className="text-xs text-zinc-500 text-center py-6 border border-dashed border-zinc-800 rounded-xl">
-                Nessun evento registrato.
-              </p>
-            ) : (
-              vehicleEvents.map(event => (
-                <button
-                  key={event.id}
-                  type="button"
-                  onClick={() => navigate(`/detail/${car.id}/event/${event.id}`)}
-                  className="w-full text-left bg-zinc-900/40 border border-zinc-800/60 hover:border-zinc-700/80 rounded-xl p-3 flex flex-col gap-1 transition-all group focus:outline-none focus:border-indigo-500/50"
-                >
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="font-semibold text-xs text-zinc-200 group-hover:text-indigo-400 transition-colors">
-                      {event.title}
-                    </span>
-                    <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border ${getCategoryColor(event.category)}`}>
-                      {event.category}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[11px] text-zinc-500 w-full">
-                    <span>{formatDate(event.date)}</span>
-                    {event.notes && <span className="italic text-zinc-400 truncate max-w-[150px]">{event.notes}</span>}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: AGNDA / CALENDARIO */}
-      {activeTab === 'calendario' && (
-        <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="flex flex-wrap gap-1.5">
+        ) : (
+          <div className="flex flex-wrap gap-1.5 animate-in fade-in duration-150">
             {(['tutti', 'manutenzione', 'riparazione', 'documenti', 'altro'] as const).map(f => (
               <button
                 key={f}
@@ -156,45 +209,26 @@ export function VehicleDetailView() {
               </button>
             ))}
           </div>
+        )}
+      </div>
 
-          <div className="space-y-2 max-h-[250px] overflow-y-auto">
-            {filteredEvents.length === 0 ? (
-              <p className="text-xs text-zinc-500 text-center py-6 border border-dashed border-zinc-800 rounded-xl">
-                Nessuna scadenza trovata per questo filtro.
-              </p>
-            ) : (
-              filteredEvents.map(event => (
-                <button
-                  key={event.id}
-                  type="button"
-                  onClick={() => navigate(`/detail/${car.id}/event/${event.id}`)}
-                  className="w-full flex items-center justify-between p-2.5 bg-zinc-950/40 border border-zinc-800/50 hover:border-zinc-700/80 rounded-xl text-left transition-all group focus:outline-none focus:border-indigo-500/50"
-                >
-                  <div className="flex flex-col">
-                    <span className="text-xs font-medium text-zinc-300 group-hover:text-indigo-400 transition-colors">
-                      {event.title}
-                    </span>
-                    <span className="text-[10px] text-zinc-500 font-mono">
-                      {formatDate(event.date)}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${
-                      event.category === 'manutenzione' ? 'bg-emerald-400' : 
-                      event.category === 'riparazione' ? 'bg-rose-400' : 
-                      event.category === 'documenti' ? 'bg-amber-400' : 'bg-zinc-400'
-                    }`} />
-                    <span className="text-[10px] text-zinc-600 group-hover:text-zinc-400 transition-colors ml-1">
-                      →
-                    </span>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      {/* ─── UNICO CONTAINER DI SCROLL CONDIVISO ─── */}
+      <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar pr-2">
+        {activeTab === 'lista' ? (
+          <EventsListTab 
+            events={vehicleEvents} 
+            carId={car.id} 
+            onNavigateToEvent={navigate} 
+          />
+        ) : (
+          <EventsCalendarTab 
+            events={filteredEvents} 
+            carId={car.id} 
+            onNavigateToEvent={navigate} 
+          />
+        )}
+      </div>
+
     </div>
   );
 }
