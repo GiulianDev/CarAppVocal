@@ -164,7 +164,6 @@ export function useGarageVoiceFlow({ vehicles, actions }: GarageVoiceFlowProps) 
       }
 
       // --- ELIMINA SINGOLO VEICOLO ---
-      // --- ELIMINA SINGOLO VEICOLO ---
       if (nlpResult.intent === 'intent.delete_vehicle') {
         if (vehicles.length === 0) {
           speakOnly("Non hai nessun veicolo nel garage.");
@@ -221,6 +220,59 @@ export function useGarageVoiceFlow({ vehicles, actions }: GarageVoiceFlowProps) 
       if (nlpResult.intent === 'intent.add_vehicle') {
         speakOnly("Certo, cosa vuoi aggiungere?");
         actions.goToAddVehicle();
+        return;
+      }
+
+      // --- VEICOLO PREFERITO ---
+      if (nlpResult.intent === 'intent.favorite_vehicle') {
+        if (vehicles.length === 0) {
+          speakOnly("Non hai nessun veicolo nel garage.");
+          return;
+        }
+
+        // 1. Controlliamo subito se l'utente ha detto direttamente la targa (infallibile)
+        const userPlate = extractPlate(nlpResult.utterance);
+        if (userPlate) {
+          const targetCar = vehicles.find(c => c.plate === userPlate);
+          if (targetCar) {
+            setPendingValue(targetCar.id);
+            askAndListen(`Sei sicuro di voler impostare la ${targetCar.brand} come preferito?`, 'confirm_delete');
+            return;
+          }
+        }
+
+        // 2. Se non ha detto la targa, facciamo un match "contains" sul campo brand (che ora include marca e modello)
+        let matchedVehicles = vehicles.filter(c => {
+          const brandLower = c.brand.toLowerCase();
+          // Dividiamo "Fiat Panda" in ["fiat", "panda"] (ignorando paroline troppo corte)
+          const brandWords = brandLower.split(/\s+/).filter(w => w.length > 2);
+          
+          // Controlliamo se ALMENO UNA parola dell'auto ("fiat" o "panda") è contenuta nella frase dell'utente
+          return brandWords.some(bw => cleanAnswer.includes(bw));
+        });
+
+        // OTTIMIZZAZIONE: Se l'utente dice "Fiat Panda", ma abbiamo anche una "Fiat Punto",
+        // il codice sopra matcherebbe entrambe (perché entrambe contengono "Fiat").
+        // Quindi se troviamo più veicoli, controlliamo se c'è un match della stringa COMPLETA.
+        if (matchedVehicles.length > 1) {
+          const exactMatches = matchedVehicles.filter(c => cleanAnswer.includes(c.brand.toLowerCase()));
+          if (exactMatches.length === 1) {
+            matchedVehicles = exactMatches;
+          }
+        }
+
+        // 3. Risoluzione dei risultati
+        if (matchedVehicles.length === 0) {
+          speakOnly("Non ho trovato nessun veicolo con questo nome nel tuo garage.");
+        } 
+        else if (matchedVehicles.length === 1) {
+          // Trovata un'unica auto! Salviamo l'id e chiediamo conferma.
+          setPendingValue(matchedVehicles[0].id);
+          askAndListen(`Vuoi impostare come preferito la ${matchedVehicles[0].brand}?`, 'confirm_delete');
+        } 
+        else {
+          // Ci sono più auto con lo stesso nome (es. 2 Panda, o ha detto solo "Fiat")
+          askAndListen(`Ho trovato ${matchedVehicles.length} veicoli che corrispondono. Dimmi il modello esatto oppure la targa.`, 'delete_disambiguate_model_or_plate');        }
         return;
       }
 
