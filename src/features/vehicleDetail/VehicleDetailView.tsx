@@ -1,19 +1,34 @@
 // VehicleDetailView.tsx
-import { Button } from '../../shared/ui/Button';
-import { useGarage } from '../../shared/Garage/useGarage';
+import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useGarage } from '../../shared/Garage/useGarage';
+import { Button } from '../../shared/ui/Button';
+import type { EventCategory } from '../../shared/Garage/car';
 
 export function VehicleDetailView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getVehicle, isLoading } = useGarage();
+  const { getVehicle, addEventToVehicle, isLoading } = useGarage();
 
-  // Se per qualche motivo strano non c'è l'ID, fai redirect
+  // Stati interni per la gestione dinamica dei componenti inline
+  const [activeTab, setActiveTab] = useState<'lista' | 'calendario'>('lista');
+  const [isAddingEvent, setIsAddingEvent] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<EventCategory | 'tutti'>('tutti');
+
+  // Stati del Form di inserimento evento inline
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState<EventCategory>('manutenzione');
+  const [date, setDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
+  const [notes, setNotes] = useState('');
+  const [formError, setFormError] = useState('');
+
   if (!id) {
-    return <Navigate to="/add-vehicle" replace />;
+    return <Navigate to="/" replace />;
   }
 
-  // Aspettiamo che l'hook finisca di leggere dal localStorage
   if (isLoading) {
     return <div className="p-8 text-center text-zinc-400">Caricamento veicolo...</div>;
   }
@@ -25,29 +40,51 @@ export function VehicleDetailView() {
   // Ora recuperiamo l'auto (senza scatenare re-render)
   const car = getVehicle(id);
 
-  const handleAddEventClick = () => {
-    navigate(`/detail/${id}/add-event`);
+  if (!car) {
+    return <div className="p-8 text-center text-zinc-400">Veicolo non trovato.</div>;
+  }
+
+  // Gestione del salvataggio dell'evento inline
+  const handleSaveEvent = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      setFormError('Inserisci una descrizione per l\'evento.');
+      return;
+    }
+
+    addEventToVehicle(car.id, {
+      title: title.trim(),
+      category,
+      date,
+      notes: notes.trim() || undefined,
+    });
+
+    // Reset del form e chiusura della sezione inline
+    setTitle('');
+    setNotes('');
+    setFormError('');
+    setIsAddingEvent(false);
   };
 
-  // Colori per i tag delle categorie
-  const getCategoryBadgeClass = (category: string) => {
-    switch (category) {
-      case 'manutenzione':
-        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      case 'documenti':
-        return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'riparazione':
-        return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-      default:
-        return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+  // Filtriamo gli eventi di questo specifico veicolo
+  const vehicleEvents = car.events || [];
+  const filteredEvents = activeFilter === 'tutti' 
+    ? vehicleEvents 
+    : vehicleEvents.filter(e => e.category === activeFilter);
+
+  // Helper per i colori dei tag
+  const getCategoryColor = (cat: string) => {
+    switch (cat) {
+      case 'manutenzione': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'documenti': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      case 'riparazione': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      default: return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
     }
   };
 
-  // Formattazione della data (es: 29 giu 2026)
   const formatDate = (dateString: string) => {
     try {
-      const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
-      return new Date(dateString).toLocaleDateString('it-IT', options);
+      return new Date(dateString).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
     } catch {
       return dateString;
     }
@@ -55,87 +92,173 @@ export function VehicleDetailView() {
 
   return (
     <div className="w-full max-w-md p-6 sm:p-8 bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-in fade-in duration-200">
-      {car ? (
-        <>
-          <div className="flex justify-between items-center mb-6">
-            <span className="bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full text-xs font-semibold tracking-wide border border-indigo-500/20">
-              Dettaglio Veicolo
-            </span>
-            {/* <Button onClick={goToAddVehicle}>
-              + Veicolo
-            </Button> */}
-          </div>
+      
+      {/* Header Dettaglio */}
+      <div className="flex justify-between items-center mb-4">
+        <span className="bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full text-xs font-semibold border border-indigo-500/20">
+          Scheda Veicolo
+        </span>
+          {/* 
+          <Button onClick={goToAddVehicle}>
+            + Veicolo
+          </Button> 
+          */}
+      </div>
+      
+      <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">{car.brand}</h1>
+      <div className="inline-flex items-center bg-zinc-800/50 text-indigo-400 font-mono font-bold text-lg px-3 py-1 rounded-xl border border-zinc-700/60 tracking-widest mb-6">
+        {car.plate}
+      </div>
+
+      {/* Navigazione tra Sotto-Componenti (Tab) */}
+      <div className="flex bg-zinc-950/60 p-1 rounded-xl border border-zinc-800 mb-6">
+        <button
+          onClick={() => { setActiveTab('lista'); setIsAddingEvent(false); }}
+          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${activeTab === 'lista' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
+        >
+          📋 Registro Lista
+        </button>
+        <button
+          onClick={() => { setActiveTab('calendario'); setIsAddingEvent(false); }}
+          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${activeTab === 'calendario' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
+        >
+          📅 Calendario Auto
+        </button>
+      </div>
+
+      {/* 1. COMPONENTE INLINE: FORM DI AGGIUNTA EVENTO */}
+      {isAddingEvent && (
+        <form onSubmit={handleSaveEvent} className="mb-6 p-4 bg-zinc-900/60 border border-zinc-800 rounded-xl space-y-4 animate-in slide-in-from-top-4 duration-200">
+          <h3 className="text-sm font-bold text-zinc-200">Aggiungi nuovo evento</h3>
           
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
-            {car.brand}
-          </h1>
-          
-          <div className="inline-flex items-center bg-zinc-800/50 text-indigo-400 font-mono font-bold text-xl px-4 py-1.5 rounded-xl border border-zinc-700/60 tracking-widest my-2 shadow-inner">
-            <div className="w-1.5 h-4 bg-indigo-500 mr-2.5 rounded-sm animate-pulse" />
-            {car.plate}
+          <input
+            type="text"
+            placeholder="Cosa hai fatto? (es. Cambio gomme)"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+          />
+
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as EventCategory)}
+              className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-2 text-xs text-white focus:outline-none"
+            >
+              <option value="manutenzione">🛠️ Manutenzione</option>
+              <option value="riparazione">💥 Riparazione</option>
+              <option value="documenti">📄 Documenti</option>
+              <option value="altro">📁 Altro</option>
+            </select>
+
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-2 text-xs text-white focus:outline-none"
+            />
           </div>
 
-          <div className="border-t border-zinc-800/60 my-6" />
+          <input
+            type="text"
+            placeholder="Note opzionali (es. Costo, marca...)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none"
+          />
 
-          {/* Intestazione Sezione Eventi */}
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-zinc-200 tracking-tight">
-              Registro Eventi
-            </h2>
-            <Button onClick={handleAddEventClick}>
-              + Evento
-            </Button>
+          {formError && <p className="text-[11px] text-rose-400">⚠️ {formError}</p>}
+
+          <div className="flex gap-2 justify-end pt-1">
+            <button
+              type="button"
+              onClick={() => setIsAddingEvent(false)}
+              className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200"
+            >
+              Annulla
+            </button>
+            <button
+              type="submit"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors"
+            >
+              Salva
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* 2. TAB CONTENUTO: LISTA EVENTI REGISTRO */}
+      {activeTab === 'lista' && !isAddingEvent && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-sm font-semibold text-zinc-300">Cronologia Attività</h2>
+            <Button onClick={() => setIsAddingEvent(true)}>+ Evento</Button>
           </div>
 
-          {/* Lista degli eventi */}
-          <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-            {!car.events || car.events.length === 0 ? (
-              <div className="text-center py-6 bg-zinc-900/20 border border-dashed border-zinc-800 rounded-xl">
-                <p className="text-sm text-zinc-500">Nessun evento registrato.</p>
-              </div>
+          <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+            {vehicleEvents.length === 0 ? (
+              <p className="text-xs text-zinc-500 text-center py-6 border border-dashed border-zinc-800 rounded-xl">Nessun evento registrato.</p>
             ) : (
-              car.events.map((event) => (
-                <div 
-                  key={event.id} 
-                  className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-4 flex flex-col gap-1.5 hover:border-zinc-700/40 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-sm text-zinc-200 leading-tight">
-                      {event.title}
-                    </h3>
-                    <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md border ${getCategoryBadgeClass(event.category)}`}>
+              vehicleEvents.map(event => (
+                <div key={event.id} className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-3 flex flex-col gap-1">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="font-semibold text-xs text-zinc-200">{event.title}</span>
+                    <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border ${getCategoryColor(event.category)}`}>
                       {event.category}
                     </span>
                   </div>
-                  
-                  <div className="flex items-center justify-between text-xs text-zinc-500 mt-1">
-                    <span className="font-mono">{formatDate(event.date)}</span>
-                    {event.notes && (
-                      <span className="truncate max-w-[180px] italic text-zinc-400 text-right">
-                        {event.notes}
-                      </span>
-                    )}
+                  <div className="flex justify-between text-[11px] text-zinc-500">
+                    <span>{formatDate(event.date)}</span>
+                    {event.notes && <span className="italic text-zinc-400 truncate max-w-[150px]">{event.notes}</span>}
                   </div>
                 </div>
               ))
             )}
           </div>
-
-          <div className="border-t border-zinc-800/60 my-6" />
-
-          <div className="bg-[#0b0b12]/60 border border-zinc-800/80 p-5 rounded-xl text-center backdrop-blur-sm">
-            <p className="font-semibold text-zinc-200 flex items-center justify-center gap-2">
-              <span>🎙️</span> Prossimo Step: Comando Vocale
-            </p>
-            <p className="text-xs text-zinc-500 mt-1.5 max-w-xs mx-auto leading-relaxed">
-              Potrai aggiungere eventi semplicemente dicendo: <br />
-              <span className="text-indigo-400 italic">"Aggiungi cambio olio fatto oggi"</span>
-            </p>
-          </div>
-        </>
-      ) : (
-        <div className="text-center py-4 text-zinc-400">Veicolo non trovato.</div>
+        </div>
       )}
+
+      {/* 3. TAB CONTENUTO: CALENDARIO SPECIFICO AUTO CON FILTRI RAPIDI */}
+      {activeTab === 'calendario' && (
+        <div className="space-y-4 animate-in fade-in duration-150">
+          {/* Filtri rapidi interni */}
+          <div className="flex flex-wrap gap-1.5">
+            {(['tutti', 'manutenzione', 'riparazione', 'documenti'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setActiveFilter(f)}
+                className={`px-2 py-1 text-[10px] font-bold rounded-md border capitalize transition-all ${
+                  activeFilter === f 
+                    ? 'bg-indigo-600 border-indigo-500 text-white' 
+                    : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+
+          {/* Agenda scadenze ordinata */}
+          <div className="space-y-2 max-h-[250px] overflow-y-auto">
+            {filteredEvents.length === 0 ? (
+              <p className="text-xs text-zinc-500 text-center py-6 border border-dashed border-zinc-800 rounded-xl">Nessuna scadenza trovata per questo filtro.</p>
+            ) : (
+              filteredEvents.map(event => (
+                <div key={event.id} className="flex items-center justify-between p-2.5 bg-zinc-950/40 border border-zinc-800/50 rounded-xl">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium text-zinc-300">{event.title}</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">{formatDate(event.date)}</span>
+                  </div>
+                  <span className={`w-2 h-2 rounded-full ${
+                    event.category === 'manutenzione' ? 'bg-emerald-400' : event.category === 'riparazione' ? 'bg-rose-400' : 'bg-amber-400'
+                  }`} />
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

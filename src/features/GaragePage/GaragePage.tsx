@@ -34,17 +34,19 @@ export function GaragePage() {
     // Rimosso il wrapper min-h-screen, manteniamo solo la larghezza e centratura
     <div className="w-full max-w-4xl mx-auto animate-in fade-in duration-300">
       
-      {/* Header con titolo e tasto Svuota Tutto */}
+      {/* Header con titolo, Calendario e Svuota Tutto */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-zinc-800/80 mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-100">La tua Flotta</h1>
           <p className="text-sm text-zinc-400 mt-1">Gestisci i tuoi {cars.length} veicoli configurati</p>
         </div>
 
-
-        <div className="w-auto flex gap-4">
+        <div className="w-auto flex flex-wrap gap-3">
+          <Button onClick={() => navigate('/calendar')}>
+            📅 Calendario
+          </Button>
           <Button onClick={() => handleGoToAddVehicle()}>
-            Aggiungi Veicolo
+            + Auto
           </Button>
           <Button
             variant="danger"
@@ -54,7 +56,7 @@ export function GaragePage() {
               }
             }}
           >
-            Svuota Garage
+            Svuota
           </Button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { AddVehicleView } from './features/AddVehicle/AddVehicleView';
 import { VehicleDetailView } from './features/vehicleDetail/VehicleDetailView';
 import { GaragePage } from './features/GaragePage/GaragePage';
 import { AddEventView } from './features/vehicleDetail/AddEventView';
+import { CalendarPage } from './features/vehicleDetail/CalendarPage';
 
 /**
  * DEFINIZIONE CENTRALIZZATA DELLE ROUTE
@@ -37,11 +38,11 @@ export const routes = [
         element: <VehicleDetailView />,
         handle: { title: 'Dettaglio veicolo' },
       },
-      {
-        path: '/detail/:id/add-event',
-        element: <AddEventView />,
-        handle: { title: 'Aggiunta evento' },
-      },
+      // {
+      //   path: '/detail/:id/add-event',
+      //   element: <AddEventView />,
+      //   handle: { title: 'Aggiunta evento' },
+      // },
       {
         path: '/detail',
         element: <Navigate to="/add-vehicle" replace />,
@@ -55,6 +56,10 @@ export const routes = [
         path: '/garage/',
         element: <GaragePage />,
         handle: { title: 'Garage' },
+      },
+      {
+        path: 'calendar',
+        element: <CalendarPage />
       }
     ],
   },
