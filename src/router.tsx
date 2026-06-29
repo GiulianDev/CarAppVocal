@@ -5,10 +5,29 @@ import { VehicleDetailPage } from './features/VehicleDetail/VehicleDetailPage';
 import { GaragePage } from './features/GaragePage/GaragePage';
 import { CalendarPage } from './features/Calendar/CalendarPage';
 import { VehicleEventsPage } from './features/Events/VehicleEventsPage';
+import { useGarage } from './shared/Garage/useGarage';
 
 /**
  * DEFINIZIONE CENTRALIZZATA DELLE ROUTE
  */
+
+
+// 👈 Componente proxy per decidere dove atterrare all'avvio
+const IndexRedirect = () => {
+  const { vehicles, isLoading } = useGarage();
+  
+  if (isLoading) return null; // Evita redirect errati a UI scarica
+
+  const favorite = vehicles.find(v => v.isFavorite) || vehicles[0];
+  
+  if (favorite) {
+    return <Navigate to={`/detail/${favorite.id}`} replace />;
+  }
+  return <Navigate to="/add-vehicle" replace />;
+};
+
+
+
 export const routes = [
   {
     element: <App />,
@@ -16,23 +35,8 @@ export const routes = [
     children: [
       {
         index: true,
-        element: <Navigate to="/add-vehicle" replace/>,
+        element: <IndexRedirect />,
       },
-      // {
-      //   element: <AddVehicleView />,
-      //   children: [
-      //     {
-      //       path: '/search',
-      //       element: <SearchPage />,
-      //       handle: { title: 'Ricerca Asset per ISIN' },
-      //     },
-      //     {
-      //       path: '/portfolio',
-      //       element: <PortfolioPage />,
-      //       handle: { title: 'Portfolio' },
-      //     },
-      //   ],
-      // },
       {
         path: '/detail/:id',
         element: <VehicleDetailPage />,
@@ -55,7 +59,7 @@ export const routes = [
       {
         path: '/add-vehicle/',
         element: <AddVehiclePage />,
-        handle: { title: 'Aggiunngi veicolo' },
+        handle: { title: 'Aggiungi veicolo' },
       },
       {
         path: '/garage/',

@@ -39,7 +39,8 @@ export function useGarage() {
         plate: plate.toUpperCase(),
         brand: `${brand} ${model}`,
         addedAt: new Date().toISOString(),
-        events: [] // 👈 Aggiunto: le nuove auto nascono con l'array pronto
+        isFavorite: vehicles.length === 0,
+        events: []
       };
       const updated = [...vehicles, newVehicle];
       setVehicles(updated);
@@ -62,7 +63,14 @@ export function useGarage() {
 
 
   const deleteVehicle = (id: string) => {
-    const updatedVehicles = vehicles.filter(car => car.id !== id);
+    
+    let updatedVehicles = vehicles.filter(car => car.id !== id);
+    
+    // Se abbiamo eliminato il preferito, promuoviamo la prima auto rimasta
+    if (updatedVehicles.length > 0 && !updatedVehicles.some(c => c.isFavorite)) {
+      updatedVehicles[0].isFavorite = true;
+    }
+
     setVehicles(updatedVehicles);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedVehicles));
     setIsLoading(false);
@@ -73,6 +81,17 @@ export function useGarage() {
     }
     */
   };
+
+  // 👈 Nuovo metodo per cambiare il preferito
+  const setFavoriteVehicle = (id: string) => {
+    const updatedVehicles = vehicles.map(car => ({
+      ...car,
+      isFavorite: car.id === id
+    }));
+    setVehicles(updatedVehicles);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedVehicles));
+  };
+
 
   const resetGarage = () => {
     setVehicles([]); 
@@ -159,6 +178,7 @@ export function useGarage() {
     addEventToVehicle,
     updateEvent,
     deleteEvent,
+    setFavoriteVehicle,
     isLoading 
   };
 }

@@ -16,5 +16,6 @@ export interface Vehicle {
   plate: string;
   brand: string;
   addedAt: string;
-  events?: VehicleEvent[]; // 👈 Nuovo: Array opzionale (per retrocompatibilità coi dati già salvati)
+  events?: VehicleEvent[]; 
+  isFavorite: boolean;
 }
