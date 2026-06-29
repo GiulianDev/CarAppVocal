@@ -13,7 +13,6 @@ interface EventsListTabProps {
   vehicle: Vehicle;
 }
 
-
 export function EventsListTab({ vehicle }: EventsListTabProps) {
   
   const navigate = useNavigate();
