@@ -18,7 +18,7 @@ export function GaragePage() {
     // 3. Orchestrazione Vocale (Il Cervello NLP)
     useGarageVoiceFlow({
       vehicles: vehicles,
-      actions: { deleteVehicle, resetGarage, goToAddVehicle: handleGoToAddVehicle }
+      actions: { deleteVehicle, resetGarage, goToAddVehicle: handleGoToAddVehicle, setFavoriteVehicle }
     });
 
   const handleResetGarage = () => {
