@@ -9,7 +9,7 @@ import { EventsCalendarTab } from './components/VehicleDetailPage';
 
 
 // ==========================================
-// COMPONENTE PRINCIPALE (CONTENITORE)
+// COMPONENTE PRINCIPALE (CONTENITORE TABS)
 // ==========================================
 export function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
