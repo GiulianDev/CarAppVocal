@@ -62,14 +62,12 @@ export function GaragePage() {
       {/* Griglia delle auto */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {vehicles.map((vehicle) => (
-          
           <GarageCard 
             key={vehicle.id}
             vehicle={vehicle} 
             onDelete={deleteVehicle}
             onSetFavorite={setFavoriteVehicle}
           />
-
         ))}
       </div>
 
