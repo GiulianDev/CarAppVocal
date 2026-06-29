@@ -22,40 +22,26 @@
   --color-ui-text-muted: #a1a1aa; /* zinc-400 */
 }
 
-/* =========================================
-   SCROLLBAR MINIMALE E MODERNA
-   ========================================= */
-
-/* 1. Supporto per Firefox (usa standard CSS) */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  /* Colore del thumb (blu elettrico) e track trasparente */
-  scrollbar-color: #3b72f7 transparent; 
-}
-
-/* 2. Supporto per Chrome, Edge, Safari (WebKit) */
+/* Scrollbar minimale coordinata */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px; /* Snella ma cliccabile */
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent; /* Il track trasparente mantiene intatto l'effetto vetro sottostante */
-  border-radius: 8px;
-  margin: 4px 0; /* Un po' di respiro alle estremità */
+  background: transparent; 
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  /* Gradiente sleek dal blu elettrico al viola */
-  background: linear-gradient(to bottom, #1e52d4, #8b5cf6);
-  border-radius: 8px;
-  border: 2px solid transparent; /* Trucco per rimpicciolire visivamente il thumb */
-  background-clip: padding-box;
+  background: rgba(30, 82, 212, 0.2);
+  border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  /* Toni più accesi al passaggio del mouse */
-  background: linear-gradient(to bottom, #3b72f7, #a78bfa);
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  background: rgba(59, 114, 247, 0.4);
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(30, 82, 212, 0.2) transparent;
 }
