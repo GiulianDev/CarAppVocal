@@ -47,6 +47,7 @@ export const CarProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       plate: plate.toUpperCase().trim(),
       brand: `${brand.trim()} ${model.trim()}`,
       addedAt: new Date().toISOString(),
+      isFavorite: false
     };
 
     // Aggiorna lo stato locale per una UI immediata (Optimistic Update)
