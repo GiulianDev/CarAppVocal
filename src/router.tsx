@@ -1,9 +1,9 @@
 import { Navigate } from 'react-router-dom';
 import App from './App';
 import { AddVehicleView } from './features/AddVehicle/AddVehicleView';
-import { VehicleDetailView } from './features/vehicleDetail/VehicleDetailView';
+import { VehicleDetailPage } from './features/VehicleDetail/VehicleDetailPage';
 import { GaragePage } from './features/GaragePage/GaragePage';
-import { CalendarPage } from './features/vehicleDetail/CalendarPage';
+import { CalendarPage } from './features/VehicleDetail/CalendarPage';
 import { VehicleEventPage } from './features/EventManagment/VehicleEventPage';
 
 /**
@@ -35,7 +35,7 @@ export const routes = [
       // },
       {
         path: '/detail/:id',
-        element: <VehicleDetailView />,
+        element: <VehicleDetailPage />,
         handle: { title: 'Dettaglio veicolo' },
       },
       {
