@@ -3,10 +3,11 @@ import { Header } from './features/header/Header';
 import { VoiceFab } from './shared/ui/VoiceFab';
 import { GlassCard } from './shared/ui/GlassCard';
 
+
 export default function App() {
 
   return (
-    <div className="min-h-screen bg-slate-950 font-sans text-slate-100 relative overflow-x-hidden flex flex-col selection:bg-blue-500/30 selection:text-white">
+    <div className="min-h-screen bg-slate-950 font-sans text-slate-100 relative overflow-hidden flex flex-col selection:bg-blue-500/30 selection:text-white">
       
         
       {/* ✨ EFFETTI LUCE RESPONSIVI */}
@@ -23,7 +24,7 @@ export default function App() {
       <Header/>
       
       {/* 📦 AREA CONTENUTO */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 relative z-10 w-full h-full">
+      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 relative z-10 w-full">
 
         {/* OUTLET - Qui il router renderizza le rotte figlie */}
         <GlassCard>
