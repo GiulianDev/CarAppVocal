@@ -22,3 +22,19 @@ La Pagina è l'"Ascoltatore Attivo" (Subscriber): Quando apri AddVehicleView, qu
 - al click sul fab so potrebbe vere la location dall'url
 
 -> l'interprete nlp deve sapere la location per capire che comandi aspettarsi
+
+
+ho un app react che permette di aggiungere e gestire dei ceivoli in un garage. adesso dobbiamo però gestire il dettaglio del singolo veicolo in modo dinamico. l'utente deve poter aggiungere un evento, ad esempio gambio gomme, o cambio olio, revisione, ecc... quindi dobbiamo modificare l'interfaccio per prevedere questi campi. bisogna anche modificare il service per permettere il salvataggio delle modifiche. e aggiungere un bottone per permettere l'aggiunta dell'evento. quando l'utente aggiunge un evento viene mostrata anche una pagina con la data di oggi e l'utente volendo può modificare. infine ci deve essere una nuova sezione calendario dove l'utente può vedere tutti gli eventi. magari aggiungiamo anche dei tag tipo "manutenzione" o "documenti" ecc per dei filtri rapidi. analizziamo le modifiche da fare e procediamo un file per volta.
+
+
+Ecco il piano d'azione:
+
+Dati (car.ts): Estendere l'interfaccia dell'auto e creare l'interfaccia per gli Eventi e le Categorie.
+
+Service (useGarage.ts): Creare le funzioni per salvare un nuovo evento dentro una specifica auto.
+
+UI - Dettaglio (VehicleDetailView.tsx): Mostrare la lista degli eventi e il bottone "Aggiungi Evento".
+
+UI - Form (AddEventView.tsx): Creare la nuova vista con la data (preimpostata a oggi), categoria e note.
+
+UI - Calendario (CalendarPage.tsx): Creare la nuova sezione globale con filtri (manutenzione, documenti, ecc.).

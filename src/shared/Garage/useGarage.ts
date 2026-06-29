@@ -1,6 +1,6 @@
-// useGetVehicle.ts
+// useGarage.ts
 import { useEffect, useState } from "react";
-import type { Car } from "./car";
+import type { Car, VehicleEvent } from "./car";
 
 const STORAGE_KEY = 'cars';
 
@@ -39,6 +39,7 @@ export function useGarage() {
         plate: plate.toUpperCase(),
         brand: `${brand} ${model}`,
         addedAt: new Date().toISOString(),
+        events: [] // 👈 Aggiunto: le nuove auto nascono con l'array pronto
       };
       const updated = [...cars, newCar];
       setCars(updated);
@@ -74,10 +75,9 @@ export function useGarage() {
   };
 
   const resetGarage = () => {
-    setCars([]); // Svuota lo stato di React
-    localStorage.removeItem(STORAGE_KEY); // Elimina la chiave dal LocalStorage
+    setCars([]); 
+    localStorage.removeItem(STORAGE_KEY); 
     setIsLoading(false);
-
     /* 💡 FUTURO CON FIRESTORE:
     if (user) {
       await updateDoc(doc(db, "users", user.uid), { cars: [] });
@@ -85,6 +85,44 @@ export function useGarage() {
     */
   };
 
-  // Restituisci lo stato VERO, non 'false' hardcodato
-  return { cars, getVehicle, addVehicle, deleteVehicle, resetGarage, isLoading };
+  // 👈 NUOVA FUNZIONE: Aggiunge un evento a un veicolo
+  const addEventToVehicle = (carId: string, eventData: Omit<VehicleEvent, 'id'>) => {
+    const updatedCars = cars.map(car => {
+      if (car.id === carId) {
+        const newEvent: VehicleEvent = {
+          ...eventData,
+          id: crypto.randomUUID(),
+        };
+        
+        // Se car.events non esiste (auto create prima di questo update), usiamo un array vuoto
+        const currentEvents = car.events || [];
+        const updatedEvents = [...currentEvents, newEvent];
+        
+        // Ordiniamo gli eventi in automatico: il più recente in alto
+        updatedEvents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return { ...car, events: updatedEvents };
+      }
+      return car;
+    });
+
+    setCars(updatedCars);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCars));
+    
+    /* 💡 FUTURO CON FIRESTORE:
+    if (user) {
+      await updateDoc(doc(db, "users", user.uid), { cars: updatedCars });
+    }
+    */
+  };
+
+  return { 
+    cars, 
+    getVehicle, 
+    addVehicle, 
+    deleteVehicle, 
+    resetGarage, 
+    addEventToVehicle, // 👈 Esponiamo la funzione al resto dell'app
+    isLoading 
+  };
 }
