@@ -155,13 +155,13 @@ export function useGarageVoiceFlow({ vehicles, actions }: GarageVoiceFlowProps) 
             actions.setFavoriteVehicle(pendingValue);
             setWaitingFor(null);
             setPendingValue(null);
-            speakOnly("Veicolo impostato come preferito.");
+            speakOnly("Fatto!");
           } else if (isCancel) {
             setWaitingFor(null);
             setPendingValue(null);
             speakOnly("Operazione annullata.");
           } else {
-            askAndListen("Vuoi procedere a impostare il veicolo come preferito?", 'confirm_favorite');
+            askAndListen("Sicuro?", 'confirm_favorite');
           }
           return;
         }
@@ -246,7 +246,7 @@ export function useGarageVoiceFlow({ vehicles, actions }: GarageVoiceFlowProps) 
           const targetCar = vehicles.find(c => c.plate === userPlate);
           if (targetCar) {
             setPendingValue(targetCar.id);
-            askAndListen(`Sei sicuro di voler eliminare la ${targetCar.brand}?`, 'confirm_delete');
+            askAndListen(`Sicuro di voler eliminare la ${targetCar.brand}?`, 'confirm_delete');
             return;
           }
         }
@@ -289,7 +289,7 @@ export function useGarageVoiceFlow({ vehicles, actions }: GarageVoiceFlowProps) 
           const targetCar = vehicles.find(c => c.plate === userPlate);
           if (targetCar) {
             setPendingValue(targetCar.id);
-            askAndListen(`Sei sicuro di voler impostare la ${targetCar.brand} come preferito?`, 'confirm_favorite');
+            askAndListen(`Sei sicuro di voler impostare la ${targetCar.brand}?`, 'confirm_favorite');
             return;
           }
         }
@@ -329,7 +329,7 @@ export function useGarageVoiceFlow({ vehicles, actions }: GarageVoiceFlowProps) 
 
        // --- NAVIGA AL CALENDARIO ---
       if (nlpResult.intent === 'intent.calendar_all') {
-        speakOnly("Certo, ecco il calendario?");
+        speakOnly("Certo, ecco il calendario");
         actions.goToCalendar();
         return;
       }
