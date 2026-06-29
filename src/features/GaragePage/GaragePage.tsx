@@ -6,7 +6,7 @@ import { GarageCard } from './components/GarageCard';
 
 export function GaragePage() {
 
-  const handleGoToAddVehicle = () => {
+  const goToAddVehicle = () => {
     console.log('going to add vehicle...');
     navigate('/add-vehicle/');
   } 
@@ -23,15 +23,8 @@ export function GaragePage() {
     // 3. Orchestrazione Vocale (Il Cervello NLP)
     useGarageVoiceFlow({
       vehicles: vehicles,
-      actions: { deleteVehicle, resetGarage, goToAddVehicle: handleGoToAddVehicle, setFavoriteVehicle, goToCalendar }
+      actions: { deleteVehicle, resetGarage, goToAddVehicle, setFavoriteVehicle, goToCalendar }
     });
-
-  const handleResetGarage = () => {
-    console.log('reset garage...');
-    resetGarage();
-  } 
-
-  
 
   return (
 
@@ -45,17 +38,17 @@ export function GaragePage() {
         </div>
 
         <div className="w-auto flex flex-wrap gap-3">
-          <Button onClick={() => navigate('/calendar')}>
+          <Button onClick={() => goToCalendar()}>
             📅 Calendario
           </Button>
-          <Button onClick={() => handleGoToAddVehicle()}>
+          <Button onClick={() => goToAddVehicle()}>
             + Auto
           </Button>
           <Button
             variant="danger"
             onClick={() => {
               if (confirm("Sei sicuro di voler svuotare interamente il tuo garage?")) {
-                handleResetGarage();
+                resetGarage();
               }
             }}
           >
