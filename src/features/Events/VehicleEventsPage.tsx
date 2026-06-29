@@ -3,74 +3,46 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGarage } from '../../shared/Garage/useGarage';
 import { EventForm, type EventFormData, type EventFormMode } from './components/EventForm';
+import { useVoiceEventsFlow } from './hook/useVoiceEventsFlow'; // <-- Import Sbloccato
 import { CapacitorCalendar } from '@ebarooni/capacitor-calendar';
-// import { useVoiceEventsFlow } from './hook/useVoiceEventsFlow'
 
 export function VehicleEventsPage() {
-
   const { id, eventId } = useParams<{ id: string; eventId?: string }>();
   const navigate = useNavigate();
   const { addEventToVehicle, updateEvent, deleteEvent, getVehicle, isLoading } = useGarage();
 
-  // Se c'è un eventId nell'URL partiamo in modalità 'view', altrimenti 'create'
   const [currentMode, setCurrentMode] = useState<EventFormMode>(eventId ? 'view' : 'create');
   
-  if (isLoading) {
-    return <div className="p-8 text-center text-zinc-400 font-mono">Caricamento in corso...</div>;
-  }
-  
-  const vehicle = getVehicle(id);
-  if (!vehicle) {
-    return <div className="p-8 text-center text-zinc-400">Veicolo non trovato.</div>;
-  }
-  
-  const goToGarage = () => { 
-    console.log('going to calendar...');
-    navigate('/garage/');
-  }
+  // 1. Recupero sicuro del veicolo prima degli Early Return
+  const vehicle = id && !isLoading ? getVehicle(id) : null;
+  const event = eventId && vehicle ? vehicle.events?.find((e) => e.id === eventId) : null;
 
-  // 3. Orchestrazione Vocale (Il Cervello NLP)
-  // useVoiceEventsFlow({
-  //   vehicle: vehicle,
-  //   actions: { goToGarage }
-  // });
+  const goToVehicleDetail = (id: string) => { 
+    console.log('going to garage...');
+    navigate(`/detail/${id}`)
+  };
 
-  // Cerca l'evento specifico se siamo in modalità view o edit
-  const event = eventId ? vehicle.events?.find((e) => e.id === eventId) : null;
-
-  // Protezione nel caso l'URL contenga un ID evento invalido
-  if (eventId && !event) {
-    return (
-      <div className="p-8 text-center text-zinc-400">
-        <p className="mb-4">Evento non trovato nel registro del veicolo.</p>
-        <button onClick={() => goToGarage()} className="text-indigo-400 underline text-sm">
-          Torna al dettaglio
-        </button>
-      </div>
-    );
-  }
-
+  // 2. Definizione del Submit (deve stare in alto perché serve all'hook vocale)
   const handleFormSubmit = async (data: EventFormData) => {
-    // 1. Salviamo i dati internamente
+    // Protezione per Typescript
+    if (!vehicle) return; 
+
     if (currentMode === 'create') {
       addEventToVehicle(vehicle.id, data);
     } else if (currentMode === 'edit' && eventId) {
       updateEvent(vehicle.id, eventId, data);
     }
 
-    // 2. Integrazione Calendario tramite Capacitor
+    // Integrazione Calendario tramite Capacitor
     if (data.reminderDate) {
       try {
-        // Creiamo il timestamp dalla data selezionata (mezzanotte UTC)
         const reminderTime = new Date(data.reminderDate).getTime();
         const eventTitle = `[Garage] ${vehicle.brand} (${vehicle.plate}) - ${data.title}`;
         const eventDescription = data.notes || 'Promemoria generato dalla tua app Garage.';
 
-        // Chiediamo il permesso di scrittura al calendario
         const permission = await CapacitorCalendar.requestWriteOnlyCalendarAccess();
 
         if (permission.result === 'granted') {
-          // Creiamo un evento "tutto il giorno" direttamente
           await CapacitorCalendar.createEvent({
             title: eventTitle,
             description: eventDescription,
@@ -79,8 +51,6 @@ export function VehicleEventsPage() {
             isAllDay: true,
           });
         } else {
-          // Fallback: se il permesso viene negato, possiamo usare il prompt di sistema
-          // che di solito è autorizzato a prescindere perché l'utente lo vede e lo conferma
           await CapacitorCalendar.createEventWithPrompt({
             title: eventTitle,
             startDate: reminderTime,
@@ -89,24 +59,49 @@ export function VehicleEventsPage() {
         }
       } catch (error) {
         console.error("Errore durante l'integrazione con Capacitor Calendar:", error);
-        // Eventualmente potresti mostrare un toast/alert all'utente
       }
     }
 
-    // 3. Ritorna sempre alla vista di dettaglio principale
     navigate(`/detail/${vehicle.id}`);
   };
+
+  // 3. Orchestrazione Vocale (Ora è in cima e sicura!)
+  useVoiceEventsFlow({
+    vehicle: vehicle,
+    actions: { 
+      submitForm: handleFormSubmit // Passiamo la funzione che salva effettivamente l'evento
+    }
+  });
+
+  // 4. EARLY RETURNS (Sotto l'Hook vocale)
+  if (isLoading) {
+    return <div className="p-8 text-center text-zinc-400 font-mono">Caricamento in corso...</div>;
+  }
+  
+  if (!vehicle) {
+    return <div className="p-8 text-center text-zinc-400">Veicolo non trovato.</div>;
+  }
+
+  if (eventId && !event) {
+    return (
+      <div className="p-8 text-center text-zinc-400">
+        <p className="mb-4">Evento non trovato nel registro del veicolo.</p>
+        <button onClick={() => navigate(`/detail/${vehicle.id}`)} className="text-indigo-400 underline text-sm">
+          Torna al dettaglio
+        </button>
+      </div>
+    );
+  }
 
   const handleFormDelete = () => {
     if (eventId && window.confirm('Sei sicuro di voler eliminare permanentemente questo evento?')) {
       deleteEvent(vehicle.id, eventId);
-      navigate(`/detail/${vehicle.id}`);
+      goToVehicleDetail(vehicle.id);
     }
   };
 
   return (
     <div>
-      
       {/* Intestazione Contestuale */}
       <div className="mb-6">
         <button
@@ -127,7 +122,6 @@ export function VehicleEventsPage() {
         </p>
       </div>
 
-      {/* Il Form Riceve lo Stato e le Funzioni di Callback Pulite */}
       <EventForm
         mode={currentMode}
         initialData={event || undefined}
@@ -136,9 +130,9 @@ export function VehicleEventsPage() {
         onEditClick={() => setCurrentMode('edit')}
         onCancelClick={() => {
           if (eventId) {
-            setCurrentMode('view'); // Torna alla visualizzazione se l'evento esiste
+            setCurrentMode('view'); 
           } else {
-            navigate(`/detail/${vehicle.id}`); // Torna indietro se stavamo creando
+            navigate(`/detail/${vehicle.id}`);
           }
         }}
       />
