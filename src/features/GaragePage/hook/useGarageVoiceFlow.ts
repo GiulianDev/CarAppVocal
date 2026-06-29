@@ -9,6 +9,7 @@ interface GarageVoiceFlowProps {
     deleteVehicle: (id: string) => void;
     resetGarage: () => void;
     goToAddVehicle: () => void;
+    goToCalendar: () => void;
     setFavoriteVehicle: (id: string) => void;
   };
 }
@@ -276,13 +277,6 @@ export function useGarageVoiceFlow({ vehicles, actions }: GarageVoiceFlowProps) 
         return;
       }
 
-      // --- NAVIGA AD AGGIUNGI VEICOLO ---
-      if (nlpResult.intent === 'intent.add_vehicle') {
-        speakOnly("Certo, cosa vuoi aggiungere?");
-        actions.goToAddVehicle();
-        return;
-      }
-
       // --- VEICOLO PREFERITO ---
       if (nlpResult.intent === 'intent.favorite_vehicle') {
         if (vehicles.length === 0) {
@@ -326,6 +320,19 @@ export function useGarageVoiceFlow({ vehicles, actions }: GarageVoiceFlowProps) 
         return;
       }
 
+       // --- NAVIGA AD AGGIUNGI VEICOLO ---
+      if (nlpResult.intent === 'intent.add_vehicle') {
+        speakOnly("Certo, cosa vuoi aggiungere?");
+        actions.goToAddVehicle();
+        return;
+      }
+
+       // --- NAVIGA AL CALENDARIO ---
+      if (nlpResult.intent === 'intent.calendar_all') {
+        speakOnly("Certo, ecco il calendario?");
+        actions.goToCalendar();
+        return;
+      }
     });
 
     return cleanup;

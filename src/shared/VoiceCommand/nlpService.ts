@@ -120,11 +120,18 @@ export async function initNlp() {
   nlp.addDocument('it', 'aggiungi ai preferiti la %brand%', FAVORITE_VEHICLE);
   nlp.addDocument('it', 'aggiungi ai preferiti %brand%', FAVORITE_VEHICLE);
   nlp.addDocument('it', 'modifica preferiti imposta la %brand%', FAVORITE_VEHICLE);
-  nlp.addDocument('it', 'imosta come preferito auto %brand% %model%', FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'imposta come preferito auto %brand% %model%', FAVORITE_VEHICLE);
   nlp.addDocument('it', 'preferito la %model%', FAVORITE_VEHICLE);
   nlp.addDocument('it', 'aggiungi ai preferiti targa %plate%', FAVORITE_VEHICLE);
   nlp.addDocument('it', 'togli la mia %brand%', FAVORITE_VEHICLE);
   nlp.addDocument('it', 'voglio aggiungere ai preferiti', FAVORITE_VEHICLE);
+
+  // NUOVO INTENTO: CALENDAR ALL VEHICLES
+  const CALENDAR_ALL = 'intent.calendar_all';
+  nlp.addDocument('it', 'vai al calendario', CALENDAR_ALL);
+  nlp.addDocument('it', 'mostrami il celendario', CALENDAR_ALL);
+  nlp.addDocument('it', 'calendario', CALENDAR_ALL);
+
 
   // ==========================================
   // 3. TRAINING DEL MODELLO

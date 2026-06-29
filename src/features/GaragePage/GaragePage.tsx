@@ -7,9 +7,14 @@ import { GarageCard } from './components/GarageCard';
 export function GaragePage() {
 
   const handleGoToAddVehicle = () => {
-    console.log('go to add vehicle...');
+    console.log('going to add vehicle...');
     navigate('/add-vehicle/');
   } 
+
+  const goToCalendar = () => { 
+    console.log('going to calendar...');
+    navigate('/calendar/');
+  }
   
   const navigate = useNavigate();
   
@@ -18,7 +23,7 @@ export function GaragePage() {
     // 3. Orchestrazione Vocale (Il Cervello NLP)
     useGarageVoiceFlow({
       vehicles: vehicles,
-      actions: { deleteVehicle, resetGarage, goToAddVehicle: handleGoToAddVehicle, setFavoriteVehicle }
+      actions: { deleteVehicle, resetGarage, goToAddVehicle: handleGoToAddVehicle, setFavoriteVehicle, goToCalendar }
     });
 
   const handleResetGarage = () => {
