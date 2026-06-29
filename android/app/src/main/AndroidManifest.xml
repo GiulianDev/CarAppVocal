@@ -38,6 +38,8 @@
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     
     <!-- Questo serve perché i telefoni più recenti bloccano la visibilità dei servizi di sistema se non dichiarati esplicitamente -->
     <queries>

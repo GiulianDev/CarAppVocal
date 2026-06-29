@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGarage } from '../../shared/Garage/useGarage';
-import { Button } from '../../shared/ui/Button';
 import type { EventCategory, VehicleEvent } from '../../shared/Garage/vehicle';
 
 interface ExtendedEvent extends VehicleEvent {
@@ -77,9 +76,9 @@ export function CalendarPage() {
             Cronologia e scadenze di tutti i veicoli presenti nel tuo garage.
           </p>
         </div>
-        <Button onClick={() => navigate('/')}>
-          Torna al Garage
-        </Button>
+        <button onClick={() => navigate('/garage')} className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+          ← Lista Garage
+        </button>
       </div>
 
       {/* Sezione Filtri Rapidi (Tag) */}
