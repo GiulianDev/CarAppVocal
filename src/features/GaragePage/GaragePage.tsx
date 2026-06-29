@@ -13,7 +13,7 @@ export function GaragePage() {
   
   const navigate = useNavigate();
   
-  const { vehicles, resetGarage, deleteVehicle } = useGarage();
+  const { vehicles, resetGarage, deleteVehicle, setFavoriteVehicle } = useGarage();
 
     // 3. Orchestrazione Vocale (Il Cervello NLP)
     useGarageVoiceFlow({
@@ -63,7 +63,12 @@ export function GaragePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {vehicles.map((vehicle) => (
           
-          <GarageCard vehicle={vehicle}/>
+          <GarageCard 
+            key={vehicle.id}
+            vehicle={vehicle} 
+            onDelete={deleteVehicle}
+            onSetFavorite={setFavoriteVehicle}
+          />
 
         ))}
       </div>
