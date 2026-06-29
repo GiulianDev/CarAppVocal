@@ -1,9 +1,14 @@
 # CarAppVocal
 
 
-genera mappa
+la descrizione dei voice intent è in VoiceCommand/nlpService.ts
 
-- uv run generate_map.py > ./PROJECT_MAP.md
+
+
+# COMANDI
+
+- genera mappa
+    uv run generate_map.py > ./PROJECT_MAP.md
 
 
 

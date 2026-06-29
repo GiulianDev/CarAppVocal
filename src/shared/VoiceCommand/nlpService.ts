@@ -116,21 +116,49 @@ export async function initNlp() {
   nlp.addDocument('it', 'voglio cancellare la %brand%', DELETE_VEHICLE);
 
   // NUOVO INTENTO: AGGIUNGI PREFERITO
-  const FAVORITE_VEHICLE = 'intent.favorite_vehicle';
-  nlp.addDocument('it', 'aggiungi ai preferiti la %brand%', FAVORITE_VEHICLE);
-  nlp.addDocument('it', 'aggiungi ai preferiti %brand%', FAVORITE_VEHICLE);
-  nlp.addDocument('it', 'modifica preferiti imposta la %brand%', FAVORITE_VEHICLE);
-  nlp.addDocument('it', 'imposta come preferito auto %brand% %model%', FAVORITE_VEHICLE);
-  nlp.addDocument('it', 'preferito la %model%', FAVORITE_VEHICLE);
-  nlp.addDocument('it', 'aggiungi ai preferiti targa %plate%', FAVORITE_VEHICLE);
-  nlp.addDocument('it', 'togli la mia %brand%', FAVORITE_VEHICLE);
-  nlp.addDocument('it', 'voglio aggiungere ai preferiti', FAVORITE_VEHICLE);
+  const SET_FAVORITE_VEHICLE = 'intent.set_favorite';
+  nlp.addDocument('it', 'aggiungi ai preferiti la %brand%', SET_FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'aggiungi ai preferiti %brand%', SET_FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'modifica preferiti imposta la %brand%', SET_FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'imposta come preferito auto %brand% %model%', SET_FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'preferito la %model%', SET_FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'aggiungi ai preferiti targa %plate%', SET_FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'togli la mia %brand%', SET_FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'voglio aggiungere ai preferiti', SET_FAVORITE_VEHICLE);
 
   // NUOVO INTENTO: CALENDAR ALL VEHICLES
   const CALENDAR_ALL = 'intent.calendar_all';
   nlp.addDocument('it', 'vai al calendario', CALENDAR_ALL);
   nlp.addDocument('it', 'mostrami il celendario', CALENDAR_ALL);
   nlp.addDocument('it', 'calendario', CALENDAR_ALL);
+
+  // NUOVO INTENTO: AGGIUNGI EVENTO
+  const ADD_EVENT_VEHICLE = 'intent.add_event';
+  nlp.addDocument('it', 'aggiungi un nuovo evento', ADD_EVENT_VEHICLE);
+  nlp.addDocument('it', 'evento', ADD_EVENT_VEHICLE);
+  nlp.addDocument('it', "aggiungi cambio dell'olio", ADD_EVENT_VEHICLE);
+  nlp.addDocument('it', 'cambio gomme', ADD_EVENT_VEHICLE);
+  nlp.addDocument('it', 'nuovo cambio', ADD_EVENT_VEHICLE);
+  nlp.addDocument('it', 'cambiate', ADD_EVENT_VEHICLE);
+  nlp.addDocument('it', 'sostituite', ADD_EVENT_VEHICLE);
+  nlp.addDocument('it', 'libretto', ADD_EVENT_VEHICLE);
+  nlp.addDocument('it', 'assicurazione', ADD_EVENT_VEHICLE);
+  nlp.addDocument('it', 'bollo', ADD_EVENT_VEHICLE);
+
+
+  // NUOVO INTENTO: GARAGE
+  const GARAGE = 'intent.garage';
+  nlp.addDocument('it', 'vai al garage', GARAGE);
+  nlp.addDocument('it', 'torna al garage', GARAGE);
+  nlp.addDocument('it', 'garage', GARAGE);
+  nlp.addDocument('it', 'tutti i veicoli', GARAGE);
+  nlp.addDocument('it', 'tutti i miei veicoli', GARAGE);
+  nlp.addDocument('it', 'tutte le mie auto', GARAGE);
+  nlp.addDocument('it', 'tutte le auto', GARAGE);
+  nlp.addDocument('it', 'la mia flotta', GARAGE);
+
+
+
 
 
   // ==========================================

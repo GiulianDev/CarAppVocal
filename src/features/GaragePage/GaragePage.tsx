@@ -6,6 +6,8 @@ import { GarageCard } from './components/GarageCard';
 
 export function GaragePage() {
 
+  const navigate = useNavigate();
+  
   const goToAddVehicle = () => {
     console.log('going to add vehicle...');
     navigate('/add-vehicle/');
@@ -15,8 +17,6 @@ export function GaragePage() {
     console.log('going to calendar...');
     navigate('/calendar/');
   }
-  
-  const navigate = useNavigate();
   
   const { vehicles, resetGarage, deleteVehicle, setFavoriteVehicle } = useGarage();
 

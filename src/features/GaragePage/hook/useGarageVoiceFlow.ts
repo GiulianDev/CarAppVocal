@@ -278,7 +278,7 @@ export function useGarageVoiceFlow({ vehicles, actions }: GarageVoiceFlowProps) 
       }
 
       // --- VEICOLO PREFERITO ---
-      if (nlpResult.intent === 'intent.favorite_vehicle') {
+      if (nlpResult.intent === 'intent.set_favorite') {
         if (vehicles.length === 0) {
           speakOnly("Non hai nessun veicolo nel garage.");
           return;
