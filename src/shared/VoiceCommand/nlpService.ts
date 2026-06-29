@@ -95,17 +95,17 @@ export async function initNlp() {
   nlp.addDocument('it', 'fermati', CANCEL);
 
 
-    // NUOVI INTENTI DI ELIMINAZIONE DI TUTTE LE AUTO
-    const DELETE_ALL = 'intent.delete_all';
-    nlp.addDocument('it', 'elimina tutto', DELETE_ALL);
-    nlp.addDocument('it', 'elimina tutte le auto', DELETE_ALL);
-    nlp.addDocument('it', 'cancella tutto', DELETE_ALL);
-    nlp.addDocument('it', 'cancella tutte le auto', DELETE_ALL);
-    nlp.addDocument('it', 'svuota garage', DELETE_ALL);
-    nlp.addDocument('it', 'pulisci garage', DELETE_ALL);
-    nlp.addDocument('it', 'elimina garage', DELETE_ALL);
+  // NUOVI INTENTI DI ELIMINAZIONE DI TUTTE LE AUTO
+  const DELETE_ALL = 'intent.delete_all';
+  nlp.addDocument('it', 'elimina tutto', DELETE_ALL);
+  nlp.addDocument('it', 'elimina tutte le auto', DELETE_ALL);
+  nlp.addDocument('it', 'cancella tutto', DELETE_ALL);
+  nlp.addDocument('it', 'cancella tutte le auto', DELETE_ALL);
+  nlp.addDocument('it', 'svuota garage', DELETE_ALL);
+  nlp.addDocument('it', 'pulisci garage', DELETE_ALL);
+  nlp.addDocument('it', 'elimina garage', DELETE_ALL);
 
-    // NUOVO INTENTO: ELIMINAZIONE SINGOLO VEICOLO
+  // NUOVO INTENTO: ELIMINAZIONE SINGOLO VEICOLO
   const DELETE_VEHICLE = 'intent.delete_vehicle';
   nlp.addDocument('it', 'elimina la %brand%', DELETE_VEHICLE);
   nlp.addDocument('it', 'elimina %brand%', DELETE_VEHICLE);
@@ -114,6 +114,17 @@ export async function initNlp() {
   nlp.addDocument('it', 'elimina targa %plate%', DELETE_VEHICLE);
   nlp.addDocument('it', 'togli la mia %brand%', DELETE_VEHICLE);
   nlp.addDocument('it', 'voglio cancellare la %brand%', DELETE_VEHICLE);
+
+  // NUOVO INTENTO: AGGIUNGI PREFERITO
+  const FAVORITE_VEHICLE = 'intent.favorite_vehicle';
+  nlp.addDocument('it', 'aggiungi ai preferiti la %brand%', FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'aggiungi ai preferiti %brand%', FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'modifica preferiti imposta la %brand%', FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'imosta come preferito auto %brand% %model%', FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'preferito la %model%', FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'aggiungi ai preferiti targa %plate%', FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'togli la mia %brand%', FAVORITE_VEHICLE);
+  nlp.addDocument('it', 'voglio aggiungere ai preferiti', FAVORITE_VEHICLE);
 
   // ==========================================
   // 3. TRAINING DEL MODELLO
