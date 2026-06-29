@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { Car } from './car';
+import type { Car } from './vehicle';
 
 interface CarContextType {
   cars: Car[];

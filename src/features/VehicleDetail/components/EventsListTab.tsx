@@ -1,5 +1,7 @@
 // VehicleDetailView.tsx
-import type { VehicleEvent } from '../../../shared/Garage/car';
+import { useNavigate } from 'react-router-dom';
+import type { Vehicle } from '../../../shared/Garage/vehicle';
+import { Button } from '../../../shared/ui/Button';
 import { formatDate, getCategoryColor } from './VehicleDetailUtils';
 
 
@@ -8,12 +10,16 @@ import { formatDate, getCategoryColor } from './VehicleDetailUtils';
 // ==========================================
 
 interface EventsListTabProps {
-  events: VehicleEvent[];
-  carId: string;
-  onNavigateToEvent: (url: string) => void;
+  vehicle: Vehicle;
 }
 
-export function EventsListTab({ events, carId, onNavigateToEvent }: EventsListTabProps) {
+
+export function EventsListTab({ vehicle }: EventsListTabProps) {
+  
+  const navigate = useNavigate();
+
+  const events = vehicle.events || [];
+
   if (events.length === 0) {
     return (
       <p className="text-xs text-zinc-500 text-center py-6 border border-dashed border-zinc-800 rounded-xl">
@@ -24,11 +30,16 @@ export function EventsListTab({ events, carId, onNavigateToEvent }: EventsListTa
 
   return (
     <>
+      <div className="flex justify-between items-center">
+        <h2 className="text-sm font-semibold text-zinc-300">Cronologia Attività</h2>
+        <Button onClick={() => navigate(`/detail/${vehicle.id}/event/new`)}>+ Evento</Button>
+      </div>
+                
       {events.map(event => (
         <button
           key={event.id}
           type="button"
-          onClick={() => onNavigateToEvent(`/detail/${carId}/event/${event.id}`)}
+          onClick={() => navigate(`/detail/${vehicle.id}/event/${event.id}`)}
           className="w-full text-left bg-zinc-900/40 border border-zinc-800/60 hover:border-zinc-700/80 rounded-xl p-3 flex flex-col gap-1 transition-all group focus:outline-none focus:border-indigo-500/50"
         >
           <div className="flex justify-between items-start gap-2">

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGarage } from '../../shared/Garage/useGarage';
 import { Button } from '../../shared/ui/Button';
-import type { EventCategory, VehicleEvent } from '../../shared/Garage/car';
+import type { EventCategory, VehicleEvent } from '../../shared/Garage/vehicle';
 
 interface ExtendedEvent extends VehicleEvent {
   carId: string;
@@ -24,7 +24,7 @@ export function CalendarPage() {
 
   // 1. Estraiamo tutti gli eventi da tutti i veicoli iniettando i dati dell'auto di appartenenza
   const allEvents: ExtendedEvent[] = cars.flatMap(car => 
-    (car.events || []).map(event => ({
+    (car.events || []).map((event: any) => ({
       ...event,
       carId: car.id,
       carBrand: car.brand,

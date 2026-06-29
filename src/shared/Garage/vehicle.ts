@@ -10,7 +10,7 @@ export interface VehicleEvent {
   notes?: string;         // Dettagli opzionali
 }
 
-export interface Car {
+export interface Vehicle {
   id: string;
   plate: string;
   brand: string;

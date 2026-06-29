@@ -1,12 +1,12 @@
 // useGarage.ts
 import { useEffect, useState } from "react";
-import type { Car, VehicleEvent } from "./car";
+import type { Vehicle, VehicleEvent } from "./vehicle";
 
 const STORAGE_KEY = 'cars';
 
 export function useGarage() {
 
-  const [cars, setCars] = useState<Car[]>([]);
+  const [cars, setCars] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export function useGarage() {
 
   const addVehicle = (plate: string, brand: string, model: string) => {    
     try {
-      const newCar: Car = {
+      const newCar: Vehicle = {
         id: crypto.randomUUID(),
         plate: plate.toUpperCase(),
         brand: `${brand} ${model}`,
