@@ -157,6 +157,19 @@ export async function initNlp() {
   nlp.addDocument('it', 'tutte le auto', GARAGE);
   nlp.addDocument('it', 'la mia flotta', GARAGE);
 
+  // NUOVO INTENTO: VISUALIZZA DETTAGLIO EVENTO
+  const VIEW_EVENT = 'intent.view_event';
+  nlp.addDocument('it', 'vai al dettaglio di', VIEW_EVENT);
+  nlp.addDocument('it', 'apri il dettaglio del', VIEW_EVENT);
+  nlp.addDocument('it', 'mostrami il', VIEW_EVENT);
+  nlp.addDocument('it', 'fammi vedere', VIEW_EVENT);
+  nlp.addDocument('it', 'apri evento', VIEW_EVENT);
+  nlp.addDocument('it', 'vai a', VIEW_EVENT);
+  // Qualche esempio specifico per aiutare la rete neurale
+  nlp.addDocument('it', 'vai al dettaglio del cambio olio', VIEW_EVENT);
+  nlp.addDocument('it', 'apri assicurazione del 2023', VIEW_EVENT);
+  nlp.addDocument('it', 'mostrami il bollo', VIEW_EVENT);
+  nlp.addDocument('it', 'dettagli revisione', VIEW_EVENT);
 
 
 

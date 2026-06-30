@@ -18,6 +18,10 @@ export function VehicleDetailPage() {
     console.log('going to garage...');
     navigate('/garage/');
   };
+  
+  const goToEvent = (eventId: string) => {
+    navigate(`/detail/${id}/event/${eventId}`);
+  };
 
   // Recuperiamo il veicolo. Se in caricamento, sarà undefined.
   const vehicle = id && !isLoading ? getVehicle(id) : null;
@@ -26,7 +30,7 @@ export function VehicleDetailPage() {
   // Il Cervello NLP ora è al sicuro da blocchi dovuti agli early return.
   useVehicleDetailVoiceFlow({
     vehicle: vehicle,
-    actions: { goToGarage }
+    actions: { goToGarage, goToEvent }
   });
 
   // --- EARLY RETURNS (Devono stare SEMPRE dopo gli hook) ---
