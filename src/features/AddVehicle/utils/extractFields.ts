@@ -8,15 +8,15 @@ export interface Catalog {
   brands: string[];
 }
 
-export type TargetField = 'brand' | 'model' | 'plate' | null;
+export type TargetField = 'brand' | 'model' | 'plate' | 'confirm_save' | null;
 
 const STOP_WORDS = new Set([
   'aggiungi', 'inserisci', 'metti', 'salva', 'registra', 'parcheggia', 'salvalo',
   'la', 'una', 'un', 'il', 'lo', 'le', 'gli', 'del', 'della', 'dello',
   'è', 'di', 'con', 'invece', 'auto', 'macchina', 'veicolo', 'vettura',
   'marca', 'modello', 'costruttore', 'targa', 'targata', 'targato',
-  'no', 'non', 'ma', 'sbagliato', 'si', 'scrive', 'chiama', 'correggi',
-  'modifica', 'cambia', 'sì', 'ok', 'esatto', 'giusto', 'conferma', 'per'
+  'no', 'non', 'ma', 'sbagliato', 'si', 'sì', 'scrive', 'chiama', 'correggi',
+  'modifica', 'cambia', 'ok', 'esatto', 'giusto', 'conferma', 'per', 'va', 'bene', 'procedi'
 ]);
 
 export const extractFields = (
@@ -33,7 +33,7 @@ export const extractFields = (
   let foundBrand = '';
   let foundModel = '';
 
-  // 1. Estrazione Targa (Pattern Standard Italiano)
+  // 1. Estrazione Targa
   const cleanForPlate = rawText.replace(/[\s\-\.,]/g, '').toUpperCase();
   const plateMatch = cleanForPlate.match(/[A-Z]{2}\d{3}[A-Z]{2}/);
   if (plateMatch) {
@@ -54,7 +54,7 @@ export const extractFields = (
     foundBrand = matchedBrand;
   }
 
-  // Se aspettavamo la Marca e non è in catalogo, prendiamo la prima parola valida
+  // Se aspettavamo la Marca (Fallback)
   if (targetField === 'brand' && !foundBrand) {
     const tokens = lowerText
       .replace(/[.,!?]/g, ' ')
@@ -66,16 +66,14 @@ export const extractFields = (
     }
   }
 
-  // Se aspettavamo il Modello
+  // Se aspettavamo il Modello (Fallback)
   if (targetField === 'model') {
     const tokens = lowerText
       .replace(/[.,!?]/g, ' ')
       .split(/\s+/)
       .filter(w => w.length > 0 && !STOP_WORDS.has(w));
     if (tokens.length > 0) {
-      foundModel = tokens
-        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ');
+      foundModel = tokens.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
       return { foundPlate: '', foundBrand, foundModel };
     }
   }
@@ -100,19 +98,14 @@ export const extractFields = (
 
   if (foundBrand) {
     if (remainingTokens.length > 0) {
-      foundModel = remainingTokens
-        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ');
+      foundModel = remainingTokens.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
   } else {
     if (remainingTokens.length === 1) {
       foundBrand = remainingTokens[0].charAt(0).toUpperCase() + remainingTokens[0].slice(1);
     } else if (remainingTokens.length > 1) {
       foundBrand = remainingTokens[0].charAt(0).toUpperCase() + remainingTokens[0].slice(1);
-      foundModel = remainingTokens
-        .slice(1)
-        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ');
+      foundModel = remainingTokens.slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
   }
 

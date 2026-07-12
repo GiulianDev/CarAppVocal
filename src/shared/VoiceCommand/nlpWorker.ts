@@ -21,7 +21,8 @@ class PipelineSingleton {
 }
 
 self.addEventListener('message', async (event) => {
-    const { text, type } = event.data;
+    // Estraiamo candidateLabels dal payload in ingresso
+    const { text, type, candidateLabels } = event.data;
 
     if (type === 'preload') {
         try {
@@ -43,19 +44,12 @@ self.addEventListener('message', async (event) => {
             });
             self.postMessage({ status: 'processing', message: 'Analisi della frase...' });
 
-            // Etichette ottimizzate per una migliore distinzione degli intenti
-            const candidateLabels = [
-                'salvare o confermare',
-                'aggiungere un veicolo',
-                'modificare la targa',
-                'modificare il modello',
-                'modificare la marca o costruttore',
-                'annullare o azzerare',
-                'andare al garage',
-                'aggiungere evento di manutenzione',
-                'visualizzare dettaglio evento'
-            ];
+            // Controllo di sicurezza sulle label dinamiche
+            if (!candidateLabels || !Array.isArray(candidateLabels) || candidateLabels.length === 0) {
+                throw new Error("Nessuna label candidata fornita al worker IA.");
+            }
 
+            // La classificazione avviene usando esclusivamente i dati passati da nlpService.ts
             const result = await classifier(text, candidateLabels, { multi_label: false });
 
             self.postMessage({ 

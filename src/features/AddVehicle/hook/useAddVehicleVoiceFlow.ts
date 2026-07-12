@@ -27,7 +27,6 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
   const { registerActionHandler } = useVoiceContext();
   const { speakAndListen, speakOnly } = useSpeechAction();
 
-  // Ref per accedere sempre al form aggiornato dentro il callback
   const formRef = useRef(form);
   useEffect(() => {
     formRef.current = form;
@@ -46,7 +45,7 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
     } else if (!currentPlate) {
       askAsValet(`Perfetto, ${currentBrand} ${currentModel}. Mi detti la targa per il tagliando?`, 'plate');
     } else {
-      askAsValet(`Ho annotato tutto: ${currentBrand} ${currentModel}, targata ${currentPlate}. Salvo e metto in garage?`, null);
+      askAsValet(`Ho annotato tutto: ${currentBrand} ${currentModel}, targata ${currentPlate}. Salvo e metto in garage?`, 'confirm_save');
     }
   };
 
@@ -55,42 +54,45 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
       if (!nlpResult || !nlpResult.utterance) return;
 
       const rawText = nlpResult.utterance.trim();
-      const lowerText = rawText.toLowerCase().replace(/[.,!?]/g, '').trim();
-      const current = formRef.current;
+      const normalizedText = rawText
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[.,!?]/g, '')
+        .trim();
 
-      // --- 1. ANNULLAMENTO ---
-      const isCancel = /^(annulla|cancella|stop|reset|lascia stare)/i.test(lowerText) || 
-                       nlpResult.intent === 'intent.cancel';
-      if (isCancel) {
+      const current = formRef.current;
+      const isFormComplete = !!(current.brand && current.model && current.plate);
+
+      // --- 1. GESTIONE ANNULLAMENTO ---
+      if (nlpResult.intent === 'intent.cancel') {
         actions.resetForm();
         setWaitingFor(null);
         speakOnly("Nessun problema, operazione annullata. Le chiavi restano a te!");
         return;
       }
 
-      const isFormComplete = !!(current.brand && current.model && current.plate);
+      // --- 2. GESTIONE CONFERMA / SALVATAGGIO ---
+      if (waitingFor === 'confirm_save' || isFormComplete) {
+        // Se la risposta è positiva o confermativa E non contiene parole di negazione o modifica
+        const isConfirmMatch = nlpResult.intent === 'intent.confirm' || /^(si|sii|ok|esatto|salva|va bene|procedi)/i.test(normalizedText);
+        const isCorrection = /^(no|non|cambia|modifica|invece)/i.test(normalizedText) || nlpResult.intent.startsWith('intent.modify_');
 
-      // --- 2. SE IL FORM È COMPLETO E L'UTENTE RISPONDE ALLA DOMANDA DI CONFERMA ---
-      if (isFormComplete) {
-        // Controlla se l'utente vuole esplicitamente correggere qualcosa (es. "no il modello è...", "cambia marca")
-        const isExplicitModification = /^(no|cambia|modifica|sbagliato|invece)/i.test(lowerText) ||
-                                       nlpResult.intent.startsWith('intent.modify_');
-
-        // Se non è una correzione, qualsiasi risposta ("sì", "si salva", "ok", "confermo", "salva", "va bene") SALVA L'AUTO
-        if (!isExplicitModification) {
+        if (isConfirmMatch && !isCorrection) {
           const success = actions.performSave();
           if (success) {
             speakOnly("Perfetto! Auto parcheggiata con successo nel garage.");
             setWaitingFor(null);
           } else {
-            speakOnly("C'è un errore nella targa salvata. Puoi dettarmela di nuovo?");
+            speakOnly("C'è un errore nei dati della targa. Puoi dirmela di nuovo?");
             setWaitingFor('plate');
           }
-          return;
+          return; // Interrompe l'esecuzione: non prova ad estrarre dati
         }
       }
 
-      // --- 3. ESTRAZIONE DATI DAL DISCORSO (Se il form non è ancora completo o l'utente corregge) ---
+      // --- 3. ESTRAZIONE DATI ---
+      // Ci arriviamo solo se l'utente non ha confermato il salvataggio o stava aggiungendo dati
       const { foundPlate, foundBrand, foundModel } = extractFields(rawText, catalog, waitingFor);
 
       let updatedBrand = current.brand;
@@ -110,12 +112,12 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
         updatedPlate = foundPlate;
       }
 
-      // --- 4. PASSO SUCCESSIVO NELLA CONVERSAZIONE ---
+      // --- 4. AVANZAMENTO CONVERSAZIONE ---
       evaluateNextStep(updatedBrand, updatedModel, updatedPlate);
     });
 
     return cleanup;
-  }, [registerActionHandler, catalog, actions]);
+  }, [registerActionHandler, catalog, actions, waitingFor]);
 
   return { waitingFor };
 }
