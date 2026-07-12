@@ -3,7 +3,7 @@ import { Button } from '../../shared/ui/Button';
 import { Combobox } from '../../shared/ui/Combobox';
 import { useVehicleCatalog } from './hook/useVehicleCatalog';
 import { useVehicleForm } from './hook/useAddVehicleForm';
-import { useAddVehicleVoiceFlow } from './hook/useAddVehicleVoiceFlow';
+import { useConversationEngine } from './hook/useConversationEngine';
 
 export function AddVehiclePage() {
   // 1. Dati dal catalogo
@@ -18,29 +18,53 @@ export function AddVehiclePage() {
     resetForm
   } = useVehicleForm();
 
-  // 3. Orchestrazione Vocale (Il Cervello NLP)
-  useAddVehicleVoiceFlow({
-    catalog: { brands, getModelsForBrand },
-    form: { plate, brand, model },
-    actions: { setPlate, setBrand, setModel, performSave, resetForm }
+  // 3. Orchestrazione Vocale Disaccoppiata
+  const { state: voiceState, draft, startConversation } = useConversationEngine({
+    catalog: { brands, getModels: getModelsForBrand },
+    onDraftComplete: (finalDraft) => {
+      // Usiamo || '' per garantire a TypeScript che il valore sia sempre una stringa
+      setBrand(finalDraft.brand || '');
+      setModel(finalDraft.model || '');
+      setPlate(finalDraft.plate || '');
+      
+      // Usiamo un breve timeout per permettere a React di aggiornare 
+      // lo stato (brand, model, plate) prima di invocare il salvataggio
+      setTimeout(() => performSave(), 100);
+    },
+    onCancel: () => resetForm()
   });
-
-  // 4. Gestione Eventi UI manuali
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     performSave();
   };
 
+  // 4. Gestione della Visualizzazione (Modalità Ibrida)
+  const isVoiceActive = voiceState !== 'IDLE';
+  const displayBrand = isVoiceActive ? (draft.brand || '') : brand;
+  const displayModel = isVoiceActive ? (draft.model || '') : model;
+  const displayPlate = isVoiceActive ? (draft.plate || '') : plate;
+
   return (
     <div>
-      
-      <div className="mb-8 text-center sm:text-left">
-        <h1 className="text-2xl font-bold tracking-tight text-white mb-2 bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
-          Configura veicolo
-        </h1>
-        <p className="text-sm text-zinc-400 leading-relaxed">
-          Inserisci i dettagli dell'auto principale per accedere alla dashboard.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+        <div className="text-center sm:text-left">
+          <h1 className="text-2xl font-bold tracking-tight text-white mb-2 bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
+            Configura veicolo
+          </h1>
+          <p className="text-sm text-zinc-400 leading-relaxed">
+            Inserisci i dettagli dell'auto o usa l'assistente vocale.
+          </p>
+        </div>
+        
+        {/* Pulsante per attivare l'assistente vocale */}
+        <Button 
+          type="button" 
+          onClick={startConversation} 
+          disabled={isVoiceActive}
+          className={isVoiceActive ? "animate-pulse bg-indigo-600" : ""}
+        >
+          {isVoiceActive ? '🎙️ In ascolto...' : '🎙️ Usa la Voce'}
+        </Button>
       </div>
 
       {isLoading ? (
@@ -54,29 +78,33 @@ export function AddVehiclePage() {
             label="Targa"
             placeholder="es. AA123BB"
             maxLength={7}
-            value={plate}
-            onChange={(e) => setPlate(e.target.value.toUpperCase())}
+            value={displayPlate}
+            onChange={(e) => !isVoiceActive && setPlate(e.target.value.toUpperCase())}
+            disabled={isVoiceActive}
           />
           
           <div className="flex flex-col gap-5">
             <Combobox
               label="Costruttore"
               placeholder="Cerca marca"
-              value={brand}
+              value={displayBrand}
               onChange={(value) => {
-                setBrand(value);
-                setModel(''); 
+                if (!isVoiceActive) {
+                  setBrand(value);
+                  setModel(''); 
+                }
               }}
               options={brands}
+              disabled={isVoiceActive}
             />
 
             <Combobox
               label="Modello"
               placeholder="Cerca modello"
-              value={model}
-              onChange={setModel}
-              options={getModelsForBrand(brand)}
-              disabled={!brand} 
+              value={displayModel}
+              onChange={(value) => !isVoiceActive && setModel(value)}
+              options={getModelsForBrand(displayBrand)}
+              disabled={!displayBrand || isVoiceActive} 
             />
           </div>
 
@@ -90,7 +118,10 @@ export function AddVehiclePage() {
           )}
 
           <div className="mt-2 flex flex-col gap-3">
-            <Button type="submit">Salva nel Garage</Button>
+            {/* Nascondiamo il tasto salva manuale se la voce è attiva, per evitare click accidentali */}
+            <Button type="submit" disabled={isVoiceActive || !displayBrand || !displayModel || !displayPlate}>
+              {isVoiceActive ? 'Salvataggio automatico...' : 'Salva nel Garage'}
+            </Button>
           </div>
         </form>    
       )}

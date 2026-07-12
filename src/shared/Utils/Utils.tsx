@@ -1,4 +1,4 @@
-import type { EventCategory } from '../Garage/vehicle';
+import type { EventCategory } from '../Garage/vehicleTypes';
 
 // ==========================================
 // UTILITIES E HELPER CONDIVISI

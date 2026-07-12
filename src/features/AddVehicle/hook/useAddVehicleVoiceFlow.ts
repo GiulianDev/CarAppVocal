@@ -1,7 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSpeechAction } from '../../../shared/VoiceCommand/useSpeechAction';
 import { useVoiceContext, type NlpResponse } from '../../../shared/VoiceCommand/VoiceContext';
-import { extractFields, type TargetField } from '../utils/extractFields';
+import {
+  parseVoiceCommand,
+  type ConversationState,
+  type ParsedVoiceCommand,
+  type TargetField,
+  type VehicleField
+} from '../utils/extractFields';
 
 interface AddVehicleVoiceFlowProps {
   catalog: {
@@ -22,8 +28,28 @@ interface AddVehicleVoiceFlowProps {
   };
 }
 
+interface DraftVehicle {
+  brand: string;
+  model: string;
+  plate: string;
+}
+
+interface ConversationMemory {
+  lastQuestion: string;
+  pendingField: VehicleField | null;
+  candidates: string[];
+}
+
 export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoiceFlowProps) {
   const [waitingFor, setWaitingFor] = useState<TargetField>(null);
+  const [conversationState, setConversationState] = useState<ConversationState>('idle');
+  const [draftVehicle, setDraftVehicle] = useState<DraftVehicle>({ brand: '', model: '', plate: '' });
+  const [conversationMemory, setConversationMemory] = useState<ConversationMemory>({
+    lastQuestion: '',
+    pendingField: null,
+    candidates: []
+  });
+
   const { registerActionHandler } = useVoiceContext();
   const { speakAndListen, speakOnly } = useSpeechAction();
 
@@ -32,92 +58,188 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
     formRef.current = form;
   }, [form]);
 
-  const askAsValet = (question: string, field: TargetField = null) => {
-    setWaitingFor(field);
-    speakAndListen(question);
-  };
+  const applyDraft = useCallback((nextDraft: DraftVehicle) => {
+    const { brand, model, plate } = nextDraft;
+    if (brand) actions.setBrand(brand);
+    if (model) actions.setModel(model);
+    if (plate) actions.setPlate(plate);
+    setDraftVehicle(nextDraft);
+  }, [actions]);
 
-  const evaluateNextStep = (currentBrand: string, currentModel: string, currentPlate: string) => {
-    if (!currentBrand) {
-      askAsValet("Che auto mettiamo in garage oggi? Dimmi la marca.", 'brand');
-    } else if (!currentModel) {
-      askAsValet(`Ottimo, una ${currentBrand}! Che modello è?`, 'model');
-    } else if (!currentPlate) {
-      askAsValet(`Perfetto, ${currentBrand} ${currentModel}. Mi detti la targa per il tagliando?`, 'plate');
-    } else {
-      askAsValet(`Ho annotato tutto: ${currentBrand} ${currentModel}, targata ${currentPlate}. Salvo e metto in garage?`, 'confirm_save');
+  const askAsValet = useCallback((question: string, field: TargetField = null, state: ConversationState = 'collecting') => {
+    setWaitingFor(field);
+    setConversationState(state);
+    setConversationMemory(prev => ({ ...prev, lastQuestion: question, pendingField: field === 'confirm_save' ? null : (field as VehicleField | null) }));
+    speakAndListen(question);
+  }, [speakAndListen]);
+
+  const syncFromForm = useCallback(() => {
+    const current = formRef.current;
+    setDraftVehicle({
+      brand: current.brand ?? '',
+      model: current.model ?? '',
+      plate: current.plate ?? ''
+    });
+  }, []);
+
+  const evaluateNextStep = useCallback((currentDraft: DraftVehicle) => {
+    const hasBrand = Boolean(currentDraft.brand);
+    const hasModel = Boolean(currentDraft.model);
+    const hasPlate = Boolean(currentDraft.plate);
+
+    if (!hasBrand) {
+      askAsValet('Che auto mettiamo in garage oggi? Dimmi la marca.', 'brand', 'collecting');
+      return;
     }
-  };
+
+    if (!hasModel) {
+      askAsValet(`Ottimo, una ${currentDraft.brand}! Che modello è?`, 'model', 'collecting');
+      return;
+    }
+
+    if (!hasPlate) {
+      askAsValet(`Perfetto, ${currentDraft.brand} ${currentDraft.model}. Mi detti la targa per il tagliando?`, 'plate', 'collecting');
+      return;
+    }
+
+    askAsValet(`Ho annotato tutto: ${currentDraft.brand} ${currentDraft.model}, targata ${currentDraft.plate}. Salvo e metto in garage?`, 'confirm_save', 'confirming');
+  }, [askAsValet]);
+
+  const handleCorrection = useCallback((parsed: ParsedVoiceCommand, currentDraft: DraftVehicle) => {
+    const nextDraft = { ...currentDraft };
+    const correctionTarget = parsed.targetField ?? conversationMemory.pendingField;
+
+    if (correctionTarget === 'brand' && parsed.entities.brand) {
+      nextDraft.brand = parsed.entities.brand;
+      applyDraft(nextDraft);
+      askAsValet(`Va bene, aggiorno la marca in ${parsed.entities.brand}.`, 'model', 'collecting');
+      return;
+    }
+
+    if (correctionTarget === 'model' && parsed.entities.model) {
+      nextDraft.model = parsed.entities.model;
+      applyDraft(nextDraft);
+      if (nextDraft.plate) {
+        askAsValet(`Perfetto, correggo il modello in ${parsed.entities.model}.`, 'confirm_save', 'confirming');
+      } else {
+        askAsValet(`Perfetto, correggo il modello in ${parsed.entities.model}. Qual è la targa?`, 'plate', 'collecting');
+      }
+      return;
+    }
+
+    if (correctionTarget === 'plate' && parsed.entities.plate) {
+      nextDraft.plate = parsed.entities.plate;
+      applyDraft(nextDraft);
+      askAsValet(`Targa aggiornata a ${parsed.entities.plate}.`, 'confirm_save', 'confirming');
+      return;
+    }
+
+    if (parsed.entities.brand) {
+      nextDraft.brand = parsed.entities.brand;
+      applyDraft(nextDraft);
+      askAsValet('Ho aggiornato la marca. Vuoi confermare il modello o correggerlo?', 'model', 'collecting');
+      return;
+    }
+
+    if (parsed.entities.model) {
+      nextDraft.model = parsed.entities.model;
+      applyDraft(nextDraft);
+      askAsValet('Ho aggiornato il modello. Vuoi confermare la targa o correggerla?', 'plate', 'collecting');
+      return;
+    }
+
+    if (parsed.entities.plate) {
+      nextDraft.plate = parsed.entities.plate;
+      applyDraft(nextDraft);
+      askAsValet('Ho aggiornato la targa. Vuoi salvare il veicolo?', 'confirm_save', 'confirming');
+      return;
+    }
+
+    askAsValet('Va bene, dimmi il dato corretto da aggiornare.', null, 'collecting');
+  }, [applyDraft, askAsValet, conversationMemory.pendingField]);
 
   useEffect(() => {
     const cleanup = registerActionHandler((nlpResult: NlpResponse) => {
-      if (!nlpResult || !nlpResult.utterance) return;
+      if (!nlpResult?.utterance) return;
 
       const rawText = nlpResult.utterance.trim();
-      const normalizedText = rawText
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .replace(/[.,!?]/g, '')
-        .trim();
+      const parsed = parseVoiceCommand(rawText, catalog, waitingFor, draftVehicle);
 
-      const current = formRef.current;
-      const isFormComplete = !!(current.brand && current.model && current.plate);
-
-      // --- 1. GESTIONE ANNULLAMENTO ---
-      if (nlpResult.intent === 'intent.cancel') {
+      if (nlpResult.intent === 'intent.cancel' || parsed.intent === 'cancel') {
         actions.resetForm();
+        setDraftVehicle({ brand: '', model: '', plate: '' });
         setWaitingFor(null);
-        speakOnly("Nessun problema, operazione annullata. Le chiavi restano a te!");
+        setConversationState('idle');
+        speakOnly('Nessun problema, operazione annullata. Le chiavi restano a te!');
         return;
       }
 
-      // --- 2. GESTIONE CONFERMA / SALVATAGGIO ---
-      if (waitingFor === 'confirm_save' || isFormComplete) {
-        // Se la risposta è positiva o confermativa E non contiene parole di negazione o modifica
-        const isConfirmMatch = nlpResult.intent === 'intent.confirm' || /^(si|sii|ok|esatto|salva|va bene|procedi)/i.test(normalizedText);
-        const isCorrection = /^(no|non|cambia|modifica|invece)/i.test(normalizedText) || nlpResult.intent.startsWith('intent.modify_');
-
-        if (isConfirmMatch && !isCorrection) {
-          const success = actions.performSave();
-          if (success) {
-            speakOnly("Perfetto! Auto parcheggiata con successo nel garage.");
-            setWaitingFor(null);
-          } else {
-            speakOnly("C'è un errore nei dati della targa. Puoi dirmela di nuovo?");
-            setWaitingFor('plate');
-          }
-          return; // Interrompe l'esecuzione: non prova ad estrarre dati
+      if (parsed.intent === 'confirm') {
+        const success = actions.performSave();
+        if (success) {
+          setConversationState('saving');
+          setWaitingFor(null);
+          speakOnly('Perfetto! Auto parcheggiata con successo nel garage.');
+        } else {
+          setConversationState('clarifying_plate');
+          setWaitingFor('plate');
+          speakOnly("C'è un errore nei dati della targa. Puoi dirmela di nuovo?");
         }
+        return;
       }
 
-      // --- 3. ESTRAZIONE DATI ---
-      // Ci arriviamo solo se l'utente non ha confermato il salvataggio o stava aggiungendo dati
-      const { foundPlate, foundBrand, foundModel } = extractFields(rawText, catalog, waitingFor);
-
-      let updatedBrand = current.brand;
-      let updatedModel = current.model;
-      let updatedPlate = current.plate;
-
-      if (foundBrand) {
-        actions.setBrand(foundBrand);
-        updatedBrand = foundBrand;
-      }
-      if (foundModel) {
-        actions.setModel(foundModel);
-        updatedModel = foundModel;
-      }
-      if (foundPlate) {
-        actions.setPlate(foundPlate);
-        updatedPlate = foundPlate;
+      if (parsed.intent === 'correction') {
+        handleCorrection(parsed, draftVehicle);
+        return;
       }
 
-      // --- 4. AVANZAMENTO CONVERSAZIONE ---
-      evaluateNextStep(updatedBrand, updatedModel, updatedPlate);
+      if (parsed.needsClarification) {
+        const nextClarificationState: ConversationState = parsed.clarificationField === 'brand'
+          ? 'clarifying_brand'
+          : parsed.clarificationField === 'model'
+            ? 'clarifying_model'
+            : parsed.clarificationField === 'plate'
+              ? 'clarifying_plate'
+              : 'collecting';
+
+        setConversationState(nextClarificationState);
+        setConversationMemory(prev => ({
+          ...prev,
+          pendingField: parsed.clarificationField,
+          candidates: parsed.brandResolution?.candidates ?? parsed.modelResolution?.candidates ?? []
+        }));
+        speakOnly(parsed.clarificationPrompt);
+        return;
+      }
+
+      const nextDraft = { ...draftVehicle };
+      if (parsed.entities.brand) nextDraft.brand = parsed.entities.brand;
+      if (parsed.entities.model) nextDraft.model = parsed.entities.model;
+      if (parsed.entities.plate) nextDraft.plate = parsed.entities.plate;
+
+      if (parsed.entities.brand || parsed.entities.model || parsed.entities.plate) {
+        applyDraft(nextDraft);
+        setConversationState('collecting');
+        evaluateNextStep(nextDraft);
+        return;
+      }
+
+      if (!draftVehicle.brand && !draftVehicle.model && !draftVehicle.plate) {
+        askAsValet('Che auto vuoi aggiungere?', null, 'collecting');
+        return;
+      }
+
+      evaluateNextStep(nextDraft);
     });
 
     return cleanup;
-  }, [registerActionHandler, catalog, actions, waitingFor]);
+  }, [actions, applyDraft, askAsValet, catalog, conversationMemory.pendingField, draftVehicle, evaluateNextStep, handleCorrection, registerActionHandler, waitingFor, speakOnly]);
 
-  return { waitingFor };
+  useEffect(() => {
+    syncFromForm();
+  }, [form, syncFromForm]);
+
+  const status = useMemo(() => ({ waitingFor, conversationState, draftVehicle, conversationMemory }), [conversationMemory, conversationState, draftVehicle, waitingFor]);
+
+  return status;
 }
