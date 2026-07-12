@@ -1,4 +1,3 @@
-// src/shared/VoiceCommand/nlpWorker.ts
 import { pipeline, env, type PipelineType } from '@xenova/transformers';
 
 // 1. ABILITIAMO I MODELLI LOCALI: Nel browser/Capacitor non userà Node.js, 
@@ -28,6 +27,7 @@ class PipelineSingleton {
         return this.instance;
     }
 }
+
 // Ascoltatore dei messaggi provenienti da React
 self.addEventListener('message', async (event) => {
     const { text, type } = event.data;
@@ -55,11 +55,13 @@ self.addEventListener('message', async (event) => {
 
             self.postMessage({ status: 'processing', message: 'Analisi della frase...' });
 
+            // Aggiunto "correggere un nome" ai candidati
             const candidateLabels = [
                 'aggiungere un veicolo', 
                 'modificare targa',
                 'modificare modello',
                 'modificare costruttore',
+                'correggere un nome', 
                 'andare al garage', 
                 'aggiungere evento di manutenzione', 
                 'visualizzare dettaglio evento',
