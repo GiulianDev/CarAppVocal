@@ -1,5 +1,3 @@
-// src/shared/VoiceCommand/nlpService.ts
-
 // Manteniamo un'istanza singola del Worker per evitare di ricaricare 
 // il modello in memoria (e sprecare risorse) ad ogni chiamata.
 let nlpWorker: Worker | null = null;
@@ -29,6 +27,7 @@ const intentMap: Record<string, string> = {
   'modificare targa': 'intent.modify_plate',
   'modificare modello': 'intent.modify_model',
   'modificare costruttore': 'intent.modify_brand',
+  'correggere un nome': 'intent.modify_model', // Mappiamo la correzione generica sul modello
 };
 
 /**
@@ -54,7 +53,6 @@ export function processVoiceText(text: string): Promise<any> {
         
         // Convertiamo l'etichetta semantica nell'intento di sistema
         const systemIntent = intentMap[intent] || intent;
-        
         console.log(`🧠 [NLP Worker] Intento: ${systemIntent} (Confidenza: ${Math.round(score * 100)}%)`);
 
         // Risolviamo la Promise restituendo l'oggetto nel formato che la tua app già si aspetta
@@ -90,8 +88,7 @@ export function preloadModel(): Promise<void> {
       const { status, error, data } = event.data;
 
       if (status === 'progress') {
-        // Se vuoi mostrare una vera progress bar globale nell'app, puoi gestire 'data' qui
-        // console.log(`Download in background: ${Math.round(data.progress || 0)}%`);
+        // Logging opzionale in background
       } else if (status === 'ready') {
         worker.removeEventListener('message', handler);
         console.log("✅ [Transformers.js] Modello precaricato con successo in background!");
