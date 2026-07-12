@@ -2,9 +2,19 @@ import { Outlet } from 'react-router';
 import { Header } from './features/header/Header';
 import { VoiceFab } from './shared/ui/VoiceFab';
 import { GlassCard } from './shared/ui/GlassCard';
+import { useEffect } from 'react';
+import { preloadModel } from './shared/VoiceCommand/nlpService';
 
 
 export default function App() {
+
+
+  // HOOK DI AVVIO DELLA RETE NEURALE: Precarica il modello di NLP all'avvio dell'app per evitare ritardi durante l'uso della voce
+  useEffect(() => {
+    preloadModel().catch(err => {
+      console.error("Errore nel precaricamento del modello vocale:", err);
+    });
+  }, []); // L'array vuoto garantisce che venga eseguito una sola volta all'avvio
 
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 relative overflow-hidden flex flex-col selection:bg-blue-500/30 selection:text-white">
