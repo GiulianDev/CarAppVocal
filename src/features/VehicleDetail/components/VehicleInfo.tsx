@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import type { Vehicle } from '../../../shared/Garage/vehicle';
+import type { Vehicle } from '../../../shared/Garage/vehicleTypes';
 
 // ==========================================
 // EVENTS TAB - LISTA CRONOLOGICA

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { EventCategory } from '../../../shared/Garage/vehicle';
+import type { EventCategory } from '../../../shared/Garage/vehicleTypes';
 import { Button } from '../../../shared/ui/Button';
 
 export type EventFormMode = 'create' | 'view' | 'edit';

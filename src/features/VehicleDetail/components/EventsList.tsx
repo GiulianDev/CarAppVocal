@@ -1,6 +1,6 @@
 // VehicleDetailView.tsx
 import { useNavigate } from 'react-router-dom';
-import type { EventCategory, Vehicle } from '../../../shared/Garage/vehicle';
+import type { EventCategory, Vehicle } from '../../../shared/Garage/vehicleTypes';
 import { Button } from '../../../shared/ui/Button';
 import { useState } from 'react';
 import { formatDate } from '../../../shared/Utils/Utils';

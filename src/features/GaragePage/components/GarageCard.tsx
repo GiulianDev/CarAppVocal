@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import type { Vehicle } from '../../../shared/Garage/vehicle';
+import type { Vehicle } from '../../../shared/Garage/vehicleTypes';
 import { Button } from '../../../shared/ui/Button';
 
 // ==========================================

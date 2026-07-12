@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGarage } from '../../shared/Garage/useGarage';
-import type { EventCategory, VehicleEvent } from '../../shared/Garage/vehicle';
+import type { EventCategory, VehicleEvent } from '../../shared/Garage/vehicleTypes';
 
 interface ExtendedEvent extends VehicleEvent {
   carId: string;

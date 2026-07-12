@@ -1,6 +1,6 @@
 // useGarage.ts
 import { useEffect, useState } from "react";
-import type { Vehicle, VehicleEvent } from "./vehicle";
+import type { Vehicle, VehicleEvent } from "./vehicleTypes";
 
 const STORAGE_KEY = 'vehicles';
 

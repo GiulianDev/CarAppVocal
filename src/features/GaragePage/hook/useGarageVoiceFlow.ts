@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useVoiceContext } from '../../../shared/VoiceCommand/VoiceContext';
 import { useSpeechAction } from '../../../shared/VoiceCommand/useSpeechAction';
-import type { Vehicle } from '../../../shared/Garage/vehicle';
+import type { Vehicle } from '../../../shared/Garage/vehicleTypes';
 
 interface GarageVoiceFlowProps {
   vehicles: Vehicle[];
