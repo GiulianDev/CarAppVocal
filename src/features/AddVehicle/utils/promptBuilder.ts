@@ -9,10 +9,10 @@ export class PromptBuilder {
   ): string {
     switch (state) {
       case 'COLLECTING':
-        if (!draft.brand) return "Che auto mettiamo in garage oggi? Dimmi la marca.";
+        if (!draft.brand) return "Che auto vuoi aggiungere?";
         if (!draft.model) return `Ottimo, un'auto targata ${draft.brand}. Che modello è?`;
-        if (!draft.plate) return `Perfetto, ${draft.brand} ${draft.model}. Mi detti la targa per completare il libretto?`;
-        return "Ho annotato tutto. Salvo e metto in garage?";
+        if (!draft.plate) return `Perfetto, ${draft.brand} ${draft.model}. Qual'è la targa?`;
+        return "Ok. Salvo e metto in garage?";
 
       case 'CLARIFYING_BRAND':
         if (candidates.length > 0) {
