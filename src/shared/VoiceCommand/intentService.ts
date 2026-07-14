@@ -5,16 +5,16 @@ export const APP_INTENTS = {
   CONFIRM: 'intent.confirm',
   CANCEL: 'intent.cancel',
   ADD_VEHICLE: 'intent.add_vehicle',
-  MODIFY_FIELD: 'intent.modify_field', // Generalizzato! Utile sia per auto che per eventi
+  MODIFY_FIELD: 'intent.modify_field',
   GOTO_GARAGE: 'intent.garage',
-  ADD_EVENT: 'intent.add_event',       // Predisposto per il futuro
-  VIEW_EVENT: 'intent.view_event',     // Predisposto per il futuro
+  ADD_EVENT: 'intent.add_event',
+  VIEW_EVENT: 'intent.view_event',
   UNKNOWN: 'intent.unknown',
 } as const;
 
 export type AppIntent = typeof APP_INTENTS[keyof typeof APP_INTENTS];
 
-// 2. MAPPATURA PER ZERO-SHOT CLASSIFIER (Etichette in linguaggio naturale)
+// 2. MAPPATURA PER ZERO-SHOT CLASSIFIER
 export const NLP_CANDIDATE_LABELS = {
   'salvare confermare procedere': APP_INTENTS.CONFIRM,
   'annullare cancellare azzerare fermare': APP_INTENTS.CANCEL,
@@ -28,24 +28,24 @@ export const NLP_CANDIDATE_LABELS = {
 // ==========================================
 // GESTIONE WORKER
 // ==========================================
-let nlpWorker: Worker | null = null;
+let intentWorker: Worker | null = null;
 
 export async function initWorker(): Promise<Worker> {
-  if (!nlpWorker) {
-    nlpWorker = new Worker(new URL('./nlpWorker.ts', import.meta.url), {
+  if (!intentWorker) {
+    intentWorker = new Worker(new URL('./intentWorker.ts', import.meta.url), {
       type: 'module'
     });
   }
-  return nlpWorker;
+  return intentWorker;
 }
 
 export async function preloadModel(): Promise<void> {
-  console.log("⏳ [NLP Service] Pre-caricamento del modello (Worker)...");
+  console.log("⏳ [Intent Service] Pre-caricamento del modello (Worker)...");
   try {
     await initWorker();
-    console.log("✅ [NLP Service] Worker NLP pre-caricato e pronto all'uso.");
+    console.log("✅ [Intent Service] Worker pre-caricato e pronto all'uso.");
   } catch (error) {
-    console.error("❌ [NLP Service] Errore nel pre-caricamento del worker:", error);
+    console.error("❌ [Intent Service] Errore nel pre-caricamento del worker:", error);
     throw error;
   }
 }
@@ -54,7 +54,6 @@ export async function preloadModel(): Promise<void> {
 // ELABORAZIONE TESTO
 // ==========================================
 
-// FAST-PATH: Regole deterministiche per comandi frequenti (Evita di svegliare l'IA)
 function checkFastPathIntent(text: string): AppIntent | null {
   const clean = text
     .normalize('NFD')
@@ -76,15 +75,17 @@ export interface NlpResult {
   intent: AppIntent;
   score: number;
   utterance: string;
-  entities: any[]; // Qui potremo tipizzare le entità in futuro
+  entities: any[];
 }
 
-export function processVoiceText(text: string): Promise<NlpResult> {
+// Aggiunto il parametro opzionale allowedIntents per il filtraggio contestuale
+export function processVoiceText(text: string, allowedIntents?: AppIntent[]): Promise<NlpResult> {
   return new Promise(async (resolve, reject) => {
-    // 1. Controllo Deterministic Fast-Path
     const fastIntent = checkFastPathIntent(text);
-    if (fastIntent) {
-      console.log(`⚡ [NLP Service] Fast-Path attivato: ${fastIntent}`);
+    
+    // Controlliamo che il fast-path rientri nei comandi ammessi (se specificati)
+    if (fastIntent && (!allowedIntents || allowedIntents.includes(fastIntent))) {
+      console.log(`⚡ [Intent Service] Fast-Path attivato: ${fastIntent}`);
       return resolve({
         intent: fastIntent,
         score: 1.0,
@@ -93,7 +94,6 @@ export function processVoiceText(text: string): Promise<NlpResult> {
       });
     }
 
-    // 2. Controllo Tramite IA Zero-Shot
     try {
       const worker = await initWorker();
       
@@ -102,9 +102,7 @@ export function processVoiceText(text: string): Promise<NlpResult> {
         
         if (status === 'complete') {
           worker.removeEventListener('message', messageHandler);
-          // Mappatura inversa: dalla stringa in linguaggio naturale all'intent di sistema
           const systemIntent = NLP_CANDIDATE_LABELS[intent as keyof typeof NLP_CANDIDATE_LABELS] || APP_INTENTS.UNKNOWN;
-          
           resolve({ 
             intent: systemIntent, 
             score, 
@@ -118,12 +116,25 @@ export function processVoiceText(text: string): Promise<NlpResult> {
       };
 
       worker.addEventListener('message', messageHandler);
+
+      // Calcoliamo quali label inviare al modello Transformer.js
+      let activeLabels = Object.keys(NLP_CANDIDATE_LABELS);
       
-      // Passiamo anche le labels al worker così non deve averle hardcodate
+      if (allowedIntents && allowedIntents.length > 0) {
+        activeLabels = Object.entries(NLP_CANDIDATE_LABELS)
+          .filter(([_, intentValue]) => allowedIntents.includes(intentValue as AppIntent))
+          .map(([labelText, _]) => labelText);
+          
+        // Fallback di sicurezza estremo: se c'è stato un errore logico e abbiamo 0 label, ricarichiamo tutto
+        if (activeLabels.length === 0) {
+          activeLabels = Object.keys(NLP_CANDIDATE_LABELS);
+        }
+      }
+
       worker.postMessage({ 
         type: 'process', 
         text, 
-        candidateLabels: Object.keys(NLP_CANDIDATE_LABELS) 
+        candidateLabels: activeLabels 
       });
 
     } catch (err) {

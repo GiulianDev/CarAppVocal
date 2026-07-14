@@ -1,3 +1,6 @@
+/*
+ * Gestire il riconoscimento vocale (microfono) su piattaforma nativa (Capacitor/Android) e browser (Web Speech API)
+ */
 import { useState, useCallback, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { SpeechRecognition } from '@capacitor-community/speech-recognition';

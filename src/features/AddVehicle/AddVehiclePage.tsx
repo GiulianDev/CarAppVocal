@@ -22,20 +22,18 @@ export function AddVehiclePage() {
   const { state: voiceState, draft, startConversation } = useConversationEngine({
     catalog: { brands, getModels: getModelsForBrand },
     onDraftComplete: (finalDraft) => {
-      // Usiamo || '' per garantire a TypeScript che il valore sia sempre una stringa
+      // Aggiorniamo lo stato visivo per coerenza
       setBrand(finalDraft.brand || '');
       setModel(finalDraft.model || '');
       setPlate(finalDraft.plate || '');
-      
-      // Usiamo un breve timeout per permettere a React di aggiornare 
-      // lo stato (brand, model, plate) prima di invocare il salvataggio
-      setTimeout(() => performSave(), 100);
+      performSave(finalDraft);
     },
     onCancel: () => resetForm()
   });
+
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    performSave();
+    performSave(); // Il salvataggio manuale continua a usare lo stato locale
   };
 
   // 4. Gestione della Visualizzazione (Modalità Ibrida)
@@ -118,7 +116,6 @@ export function AddVehiclePage() {
           )}
 
           <div className="mt-2 flex flex-col gap-3">
-            {/* Nascondiamo il tasto salva manuale se la voce è attiva, per evitare click accidentali */}
             <Button type="submit" disabled={isVoiceActive || !displayBrand || !displayModel || !displayPlate}>
               {isVoiceActive ? 'Salvataggio automatico...' : 'Salva nel Garage'}
             </Button>

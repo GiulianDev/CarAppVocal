@@ -1,3 +1,6 @@
+/*
+ * motore di intelligenza artificiale che gira in un thread separato (Web Worker) per non bloccare l'interfaccia utente
+*/
 import { pipeline, env, type PipelineType } from '@xenova/transformers';
 
 env.allowLocalModels = true;

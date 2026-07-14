@@ -1,159 +1,169 @@
-import type { MatchConfidence, ParsedCommand } from "../../../shared/VoiceCommand/conversationTypes";
+// src/features/vehicle/utils/voiceParser.ts
+import type { MatchConfidence } from "../../../shared/VoiceCommand/conversationTypes";
 
-// Stop words per pulire la frase 
-const STOP_WORDS = new Set([
-  'aggiungi', 'inserisci', 'metti', 'salva', 'registra', 'parcheggia', 'salvalo',
+// Parole di disturbo da ignorare nella ricerca testuale
+const NOISE_WORDS = new Set([
+  'aggiungi', 'inserisci', 'metti', 'salva', 'registra', 'parcheggia',
   'la', 'una', 'un', 'il', 'lo', 'le', 'gli', 'del', 'della', 'dello',
-  'è', 'di', 'con', 'invece', 'auto', 'macchina', 'veicolo', 'vettura',
-  'marca', 'modello', 'costruttore', 'targa', 'targata', 'targato',
-  'per', 'va', 'bene', 'procedi', 'aspetta', 'volevo', 'dire', 'intendevo', 
-  'cosi', 'così', 'male', 'scritto', 'quello', 'questa', 'questo', 'quella', 
-  'anzi', 'oppure', 'o', 'e', 'anche', 'voglio', 'vorrei'
+  'di', 'con', 'invece', 'auto', 'macchina', 'veicolo', 'vettura',
+  'marca', 'modello', 'targa', 'targata', 'targato', 'scritto', 'chiamata'
 ]);
 
-const normalizeText = (value: string) =>
-  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[.,!?]/g, ' ').trim();
+// Normalizzazione standard del testo per il confronto fuzzy
+const normalizeText = (val: string): string =>
+  val
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Rimuove accenti
+    .toLowerCase()
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ' ') // Rimuove punteggiatura
+    .replace(/\s+/g, ' ') // Raggruppa spazi multipli
+    .trim();
 
-const tokenizeMeaningfulText = (value: string) =>
-  normalizeText(value).split(/\s+/).filter(Boolean).filter(token => !STOP_WORDS.has(token));
-
-// Algoritmo di Levenshtein
-const levenshteinDistance = (left: string, right: string) => {
-  const matrix = Array.from({ length: left.length + 1 }, () => Array(right.length + 1).fill(0));
-  for (let i = 0; i <= left.length; i += 1) matrix[i][0] = i;
-  for (let j = 0; j <= right.length; j += 1) matrix[0][j] = j;
-
-  for (let i = 1; i <= left.length; i += 1) {
-    for (let j = 1; j <= right.length; j += 1) {
-      const cost = left[i - 1] === right[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,
-        matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost
+// Algoritmo di Levenshtein per tollerare piccoli refusi dello Speech-to-Text
+const levenshteinDistance = (a: string, b: string): number => {
+  const tmp = [];
+  for (let i = 0; i <= a.length; i++) {
+    tmp[i] = [i];
+  }
+  for (let j = 0; j <= b.length; j++) {
+    tmp[0][j] = j;
+  }
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      tmp[i][j] = Math.min(
+        tmp[i - 1][j] + 1,
+        tmp[i][j - 1] + 1,
+        tmp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
       );
     }
   }
-  return matrix[left.length][right.length];
+  return tmp[a.length][b.length];
 };
 
-const scoreMatch = (query: string, candidate: string) => {
-  const normalizedQuery = normalizeText(query);
-  const normalizedCandidate = normalizeText(candidate);
+// Calcola un punteggio di match da 0.0 a 1.0
+const calculateMatchScore = (query: string, target: string): number => {
+  if (query === target) return 1.0;
+  if (target.includes(query) || query.includes(target)) return 0.9;
 
-  if (!normalizedQuery || !normalizedCandidate) return 0;
-  if (normalizedQuery === normalizedCandidate) return 1;
-  if (normalizedQuery.includes(normalizedCandidate) || normalizedCandidate.includes(normalizedQuery)) return 0.9;
-  if (normalizedQuery.startsWith(normalizedCandidate) || normalizedCandidate.startsWith(normalizedQuery)) return 0.8;
-
-  const distance = levenshteinDistance(normalizedQuery, normalizedCandidate);
-  const maxLength = Math.max(normalizedQuery.length, normalizedCandidate.length);
-  const ratio = maxLength === 0 ? 1 : 1 - distance / maxLength;
-
-  return ratio >= 0.7 ? ratio : 0;
+  const distance = levenshteinDistance(query, target);
+  const maxLength = Math.max(query.length, target.length);
+  const score = 1 - distance / maxLength;
+  
+  return score >= 0.7 ? score : 0; // Accettiamo solo match sopra il 70% di somiglianza
 };
 
-// Catalog Resolver isolato
-export const resolveEntity = (query: string, candidates: string[]): MatchConfidence & { candidates: string[] } => {
-  const trimmedQuery = normalizeText(query);
-  if (!trimmedQuery) return { value: '', score: 0, level: 'none', candidates: [] };
+/**
+ * Cerca un'entità all'interno del catalogo usando sliding windows (N-Gram)
+ * per catturare correttamente anche nomi composti (es. "Alfa Romeo").
+ */
+export const resolveEntity = (
+  cleanText: string,
+  candidates: string[]
+): MatchConfidence & { candidates: string[] } => {
+  if (!cleanText) return { value: '', score: 0, level: 'none', candidates: [] };
 
-  const exactMatch = candidates.find(c => normalizeText(c) === trimmedQuery);
-  if (exactMatch) {
-    return { value: exactMatch, score: 1, level: 'exact', candidates: [exactMatch] };
+  const words = cleanText.split(' ').filter(w => !NOISE_WORDS.has(w));
+  let bestMatch: MatchConfidence = { value: '', score: 0, level: 'none' };
+  const matchesFound: { value: string; score: number }[] = [];
+
+  // Analizziamo sotto-frasi da 1 a 3 parole per beccare i nomi composti
+  for (let len = 1; len <= Math.min(3, words.length); len++) {
+    for (let i = 0; i <= words.length - len; i++) {
+      const chunk = words.slice(i, i + len).join(' ');
+      
+      for (const candidate of candidates) {
+        const normCandidate = normalizeText(candidate);
+        const score = calculateMatchScore(chunk, normCandidate);
+
+        if (score > 0) {
+          matchesFound.push({ value: candidate, score });
+        }
+      }
+    }
   }
 
-  const scored = candidates
-    .map(candidate => ({ value: candidate, score: scoreMatch(trimmedQuery, candidate) }))
-    .filter(entry => entry.score >= 0.7)
-    .sort((a, b) => b.score - a.score);
+  if (matchesFound.length === 0) {
+    return { value: '', score: 0, level: 'none', candidates: [] };
+  }
 
-  if (scored.length === 0) return { value: '', score: 0, level: 'none', candidates: [] };
-
-  const best = scored[0];
-  let level: MatchConfidence['level'] = 'low';
+  // Ordiniamo per punteggio decrescente e per lunghezza del candidato (preferiamo match più specifici)
+  matchesFound.sort((a, b) => b.score - a.score || b.value.length - a.value.length);
   
-  if (best.score >= 0.86) level = 'high';
+  const best = matchesFound[0];
+  let level: MatchConfidence['level'] = 'low';
+  if (best.score === 1.0) level = 'exact';
+  else if (best.score >= 0.85) level = 'high';
   else if (best.score >= 0.75) level = 'medium';
+
+  const uniqueCandidates = Array.from(new Set(matchesFound.map(m => m.value))).slice(0, 3);
 
   return {
     value: best.value,
     score: best.score,
     level,
-    candidates: scored.slice(0, 3).map(s => s.value)
+    candidates: uniqueCandidates
   };
 };
 
-// Parser Conversazionale Principale
-export const parseConversationalCommand = (
-  text: string, 
-  catalog: { brands: string[], getModels: (b: string) => string[] },
+export interface ExtractedVehicleEntities {
+  brand: MatchConfidence | null;
+  model: MatchConfidence | null;
+  plate: MatchConfidence | null;
+}
+
+/**
+ * Funzione principale di estrazione entità deterministica
+ */
+export const extractVehicleEntities = (
+  text: string,
+  catalog: { brands: string[]; getModels: (brand: string) => string[] },
   currentBrandContext?: string | null
-): ParsedCommand => {
-  const originalText = text.trim();
-  const normalizedText = normalizeText(originalText);
+): ExtractedVehicleEntities => {
+  let workingText = text.trim();
+  let plate: MatchConfidence | null = null;
 
-  // Rilevamento Intenti
-  const isCorrection = /\b(no|non|cambia|modifica|correggi|invece|anzi|sbagliato|scrive|male|volevo dire|intendevo|si scrive|cosi|così)\b/i.test(normalizedText);
-  const isConfirm = /\b(si|sii|ok|esatto|salva|va bene|procedi|conferma|perfetto|giusto)\b/i.test(normalizedText);
-  const isCancel = /\b(annulla|ferma|stop|cancella|reset|indietro)\b/i.test(normalizedText);
+  // 1. Estrazione Targa (Formato Italiano standard: 2 lettere, 3 numeri, 2 lettere)
+  // Riconosce formati con spazi o trattini tipo "AA 322 RT" o "aa-322-rt"
+  const cleanForPlate = workingText.replace(/[\-\s\.]/g, '').toUpperCase();
+  const plateRegex = /[A-Z]{2}\d{3}[A-Z]{2}/;
+  const plateMatch = cleanForPlate.match(plateRegex);
 
-  let intent: ParsedCommand['intent'] = 'UNKNOWN';
-  
-  if (isCancel) {
-    intent = 'CANCEL';
-  } else if (isConfirm && !isCorrection) {
-    intent = 'CONFIRM';
-  } else if (isCorrection) {
-    intent = 'CORRECTION';
-  }
-
-  // Estrazione Targa (Pattern Regex esatto)
-  const plateMatch = originalText.replace(/[\s\-\.,]/g, '').toUpperCase().match(/[A-Z]{2}\d{3}[A-Z]{2}/);
-  let plateConfidence: MatchConfidence | undefined;
-  
   if (plateMatch) {
-    plateConfidence = { value: plateMatch[0], score: 1, level: 'exact' };
-    intent = isCorrection ? 'CORRECTION' : 'ADD_VEHICLE'; 
+    plate = {
+      value: plateMatch[0],
+      score: 1.0,
+      level: 'exact'
+    };
+    // Rimuoviamo la targa dal testo di lavoro per evitare che sporchi la ricerca del modello
+    // (es. "Alfa Romeo AA123BB" -> "Alfa Romeo")
+    const rawMatchInOriginalText = workingText.match(new RegExp(plateMatch[0].split('').join('\\s*'), 'i'));
+    if (rawMatchInOriginalText) {
+      workingText = workingText.replace(rawMatchInOriginalText[0], '');
+    }
   }
 
-  // Identificazione Entità Grezze (Filtriamo le stop words per trovare i nomi)
-  const tokens = tokenizeMeaningfulText(originalText);
-  const rawEntityQuery = tokens.join(' ');
+  const cleanText = normalizeText(workingText);
 
-  // Risoluzione Marca
-  const brandResolution = resolveEntity(rawEntityQuery, catalog.brands);
-  let resolvedBrand = brandResolution.level !== 'none' ? brandResolution : undefined;
+  // 2. Estrazione Brand
+  const brandResolution = resolveEntity(cleanText, catalog.brands);
+  const brand = brandResolution.level !== 'none' ? brandResolution : null;
 
-  // Risoluzione Modello
-  let resolvedModel: MatchConfidence | undefined;
-  const targetBrand = resolvedBrand?.value || currentBrandContext;
-  
-  if (targetBrand) {
-    const modelCandidates = catalog.getModels(targetBrand);
-    // Se abbiamo trovato un brand nel testo, lo togliamo dalla stringa prima di cercare il modello
-    const queryWithoutBrand = resolvedBrand 
-      ? normalizeText(rawEntityQuery).replace(normalizeText(resolvedBrand.value), '').trim()
-      : rawEntityQuery;
-    
-    const modelResolution = resolveEntity(queryWithoutBrand, modelCandidates);
+  // 3. Estrazione Modello (Legato al brand trovato o a quello già in memoria)
+  let model: MatchConfidence | null = null;
+  const activeBrand = brand?.value || currentBrandContext;
+
+  if (activeBrand) {
+    const modelsList = catalog.getModels(activeBrand);
+    // Puliamo il testo dal nome del brand per evitare falsi positivi sul modello
+    const textWithoutBrand = brand 
+      ? cleanText.replace(normalizeText(brand.value), '').trim() 
+      : cleanText;
+
+    const modelResolution = resolveEntity(textWithoutBrand, modelsList);
     if (modelResolution.level !== 'none') {
-      resolvedModel = modelResolution;
+      model = modelResolution;
     }
   }
 
-  // Fallback Intento: se era sconosciuto ma abbiamo trovato entità, è un'aggiunta o una correzione
-  if (intent === 'UNKNOWN' && (resolvedBrand || resolvedModel || plateConfidence)) {
-    intent = isCorrection ? 'CORRECTION' : 'ADD_VEHICLE';
-  }
-
-  return {
-    intent,
-    isNegation: isCorrection,
-    originalText,
-    entities: {
-      brand: resolvedBrand,
-      model: resolvedModel,
-      plate: plateConfidence
-    }
-  };
+  return { brand, model, plate };
 };

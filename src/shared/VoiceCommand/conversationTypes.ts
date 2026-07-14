@@ -24,6 +24,7 @@ export interface MatchConfidence {
   value: string;
   score: number; // da 0.0 a 1.0
   level: 'exact' | 'high' | 'medium' | 'low' | 'none';
+  candidates?: string[]; 
 }
 
 export interface ParsedCommand {
