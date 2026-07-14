@@ -1,3 +1,4 @@
+// src/shared/VoiceCommand/intentService.ts
 // ==========================================
 // 1. DIZIONARIO DEGLI INTENTI (SINGLE SOURCE OF TRUTH)
 // ==========================================
@@ -62,12 +63,21 @@ function checkFastPathIntent(text: string): AppIntent | null {
     .replace(/[.,!?]/g, '')
     .trim();
 
+  // 1. Controllo esatto per conferma
   if (/^(si|sii|ok|esatto|confermo|salva|salvalo|perfetto|va bene|giusto|procedi|vai|si salva)$/i.test(clean)) {
     return APP_INTENTS.CONFIRM;
   }
+  
+  // 2. Controllo esatto per cancellazione (solo se è l'unica parola rilevante)
   if (/^(no|annulla|cancella|reset|resetta|stop|lascia stare|fermati)$/i.test(clean)) {
     return APP_INTENTS.CANCEL;
   }
+
+  // 3. Fast-path robusto per le modifiche (risolve "no modifica...")
+  if (/\b(modifica|correggi|cambia|aggiorna)\b/i.test(clean)) {
+    return APP_INTENTS.MODIFY_FIELD;
+  }
+
   return null;
 }
 
@@ -78,7 +88,6 @@ export interface NlpResult {
   entities: any[];
 }
 
-// Aggiunto il parametro opzionale allowedIntents per il filtraggio contestuale
 export function processVoiceText(text: string, allowedIntents?: AppIntent[]): Promise<NlpResult> {
   return new Promise(async (resolve, reject) => {
     const fastIntent = checkFastPathIntent(text);
@@ -89,7 +98,7 @@ export function processVoiceText(text: string, allowedIntents?: AppIntent[]): Pr
       return resolve({
         intent: fastIntent,
         score: 1.0,
-        utterance: text,
+        utterance: text, // Ritorniamo sempre il testo originale all'engine
         entities: []
       });
     }
@@ -98,7 +107,7 @@ export function processVoiceText(text: string, allowedIntents?: AppIntent[]): Pr
       const worker = await initWorker();
       
       const messageHandler = (event: MessageEvent) => {
-        const { status, intent, score, utterance, error } = event.data;
+        const { status, intent, score, error } = event.data;
         
         if (status === 'complete') {
           worker.removeEventListener('message', messageHandler);
@@ -106,7 +115,7 @@ export function processVoiceText(text: string, allowedIntents?: AppIntent[]): Pr
           resolve({ 
             intent: systemIntent, 
             score, 
-            utterance, 
+            utterance: text, // FIX: Forziamo sempre il ritorno del testo originale, non quello tagliato
             entities: [] 
           });
         } else if (status === 'error') {
@@ -117,7 +126,6 @@ export function processVoiceText(text: string, allowedIntents?: AppIntent[]): Pr
 
       worker.addEventListener('message', messageHandler);
 
-      // Calcoliamo quali label inviare al modello Transformer.js
       let activeLabels = Object.keys(NLP_CANDIDATE_LABELS);
       
       if (allowedIntents && allowedIntents.length > 0) {
@@ -125,15 +133,19 @@ export function processVoiceText(text: string, allowedIntents?: AppIntent[]): Pr
           .filter(([_, intentValue]) => allowedIntents.includes(intentValue as AppIntent))
           .map(([labelText, _]) => labelText);
           
-        // Fallback di sicurezza estremo: se c'è stato un errore logico e abbiamo 0 label, ricarichiamo tutto
         if (activeLabels.length === 0) {
           activeLabels = Object.keys(NLP_CANDIDATE_LABELS);
         }
       }
 
+      // PRE-PROCESSING: Rimuoviamo la negazione iniziale se seguita da testo utile.
+      // Questo impedisce al modello NLP di sbilanciarsi sull'intento CANCEL.
+      let textForAi = text.replace(/^(no|aspetta|scusa|errato|sbagliato)[,.\s]+/i, '').trim();
+      if (!textForAi) textForAi = text;
+
       worker.postMessage({ 
         type: 'process', 
-        text, 
+        text: textForAi, // Passiamo il testo "pulito" al worker
         candidateLabels: activeLabels 
       });
 
