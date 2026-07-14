@@ -5,11 +5,8 @@
 export const APP_INTENTS = {
   CONFIRM: 'intent.confirm',
   CANCEL: 'intent.cancel',
-  ADD_VEHICLE: 'intent.add_vehicle',
   MODIFY_FIELD: 'intent.modify_field',
   GOTO_GARAGE: 'intent.garage',
-  ADD_EVENT: 'intent.add_event',
-  VIEW_EVENT: 'intent.view_event',
   UNKNOWN: 'intent.unknown',
 } as const;
 
@@ -17,13 +14,10 @@ export type AppIntent = typeof APP_INTENTS[keyof typeof APP_INTENTS];
 
 // 2. MAPPATURA PER ZERO-SHOT CLASSIFIER
 export const NLP_CANDIDATE_LABELS = {
-  'salvare confermare procedere': APP_INTENTS.CONFIRM,
-  'annullare cancellare azzerare fermare': APP_INTENTS.CANCEL,
-  'aggiungere inserire nuovo veicolo macchina': APP_INTENTS.ADD_VEHICLE,
-  'modificare correggere cambiare campo valore': APP_INTENTS.MODIFY_FIELD,
-  'andare aprire garage lista': APP_INTENTS.GOTO_GARAGE,
-  'aggiungere inserire evento manutenzione tagliando': APP_INTENTS.ADD_EVENT,
-  'visualizzare mostrare dettaglio evento': APP_INTENTS.VIEW_EVENT,
+  'confermare salvare procedere ok': APP_INTENTS.CONFIRM,
+  'annullare cancellare fermare stop': APP_INTENTS.CANCEL,
+  'modificare correggere cambiare aggiornare sostituire': APP_INTENTS.MODIFY_FIELD,
+  'andare aprire garage lista veicoli': APP_INTENTS.GOTO_GARAGE,
 } as const;
 
 // ==========================================
@@ -63,42 +57,63 @@ function checkFastPathIntent(text: string): AppIntent | null {
     .replace(/[.,!?]/g, '')
     .trim();
 
-  // 1. Controllo esatto per conferma
+  // 1. Conferma
   if (/^(si|sii|ok|esatto|confermo|salva|salvalo|perfetto|va bene|giusto|procedi|vai|si salva)$/i.test(clean)) {
     return APP_INTENTS.CONFIRM;
   }
   
-  // 2. Controllo esatto per cancellazione (solo se è l'unica parola rilevante)
+  // 2. Cancellazione (solo se è l'unica parola rilevante)
   if (/^(no|annulla|cancella|reset|resetta|stop|lascia stare|fermati)$/i.test(clean)) {
     return APP_INTENTS.CANCEL;
   }
 
-  // 3. Fast-path robusto per le modifiche (risolve "no modifica...")
-  if (/\b(modifica|correggi|cambia|aggiorna)\b/i.test(clean)) {
+  // 3. CORREZIONE ESPLICITA: pattern per "modello/marca/targa è X"
+  // Cattura anche con "No" davanti e articoli opzionali
+  if (
+    /\bmodello\s+(?:è|e|sia|sarebbe|dovrebbe essere)\s+\w+/i.test(clean) ||
+    /\b(?:marca|costruttore)\s+(?:è|e|sia|sarebbe|dovrebbe essere)\s+\w+/i.test(clean) ||
+    /\btarga\s+(?:è|e|sia|sarebbe|dovrebbe essere)\s+[a-z0-9]+/i.test(clean)
+  ) {
+    console.log(`🔧 [Fast-Path] Rilevata correzione di campo con "è": "${text}"`);
+    return APP_INTENTS.MODIFY_FIELD;
+  }
+
+  // 4. Correzione esplicita con "modifica/correggi/cambia" + campo
+  if (
+    /\b(modifica|correggi|cambia|aggiorna)\s+(?:il\s+)?(?:modello|marca|costruttore|targa)\s+(?:in|con)\s+\w+/i.test(clean)
+  ) {
+    console.log(`🔧 [Fast-Path] Rilevata correzione con verbo di modifica: "${text}"`);
+    return APP_INTENTS.MODIFY_FIELD;
+  }
+
+  // 5. Modifica generica (con "modifica", "correggi", "cambia" o negazione iniziale)
+  if (
+    /^(no|non|invece|anzi|sbagliato|ma|però)\b/.test(clean) ||
+    /\b(modifica|correggi|cambia|aggiorna|scrive|intendevo|volevo dire)\b/.test(clean)
+  ) {
     return APP_INTENTS.MODIFY_FIELD;
   }
 
   return null;
 }
 
-export interface NlpResult {
+export interface IntentResult {
   intent: AppIntent;
   score: number;
   utterance: string;
   entities: any[];
 }
 
-export function processVoiceText(text: string, allowedIntents?: AppIntent[]): Promise<NlpResult> {
+export function processVoiceText(text: string, allowedIntents?: AppIntent[]): Promise<IntentResult> {
   return new Promise(async (resolve, reject) => {
     const fastIntent = checkFastPathIntent(text);
     
-    // Controlliamo che il fast-path rientri nei comandi ammessi (se specificati)
     if (fastIntent && (!allowedIntents || allowedIntents.includes(fastIntent))) {
       console.log(`⚡ [Intent Service] Fast-Path attivato: ${fastIntent}`);
       return resolve({
         intent: fastIntent,
         score: 1.0,
-        utterance: text, // Ritorniamo sempre il testo originale all'engine
+        utterance: text,
         entities: []
       });
     }
@@ -115,7 +130,7 @@ export function processVoiceText(text: string, allowedIntents?: AppIntent[]): Pr
           resolve({ 
             intent: systemIntent, 
             score, 
-            utterance: text, // FIX: Forziamo sempre il ritorno del testo originale, non quello tagliato
+            utterance: text,
             entities: [] 
           });
         } else if (status === 'error') {
@@ -138,14 +153,13 @@ export function processVoiceText(text: string, allowedIntents?: AppIntent[]): Pr
         }
       }
 
-      // PRE-PROCESSING: Rimuoviamo la negazione iniziale se seguita da testo utile.
-      // Questo impedisce al modello NLP di sbilanciarsi sull'intento CANCEL.
+      // PRE-PROCESSING: Rimuoviamo la negazione iniziale se seguita da testo utile
       let textForAi = text.replace(/^(no|aspetta|scusa|errato|sbagliato)[,.\s]+/i, '').trim();
       if (!textForAi) textForAi = text;
 
       worker.postMessage({ 
         type: 'process', 
-        text: textForAi, // Passiamo il testo "pulito" al worker
+        text: textForAi,
         candidateLabels: activeLabels 
       });
 

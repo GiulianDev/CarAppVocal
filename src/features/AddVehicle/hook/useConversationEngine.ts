@@ -4,7 +4,7 @@ import { useSpeechAction } from '../../../shared/VoiceCommand/useSpeechAction';
 import { useVoiceContext } from '../../../shared/VoiceCommand/VoiceContext';
 import { PromptBuilder } from '../utils/promptBuilder';
 import { extractVehicleEntities, type ExtractedVehicleEntities } from '../utils/voiceParser';
-import { APP_INTENTS, type NlpResult } from '../../../shared/VoiceCommand/intentService';
+import { APP_INTENTS, type IntentResult } from '../../../shared/VoiceCommand/intentService';
 import type { ConversationMemory, ConversationState, DraftVehicle } from '../../../shared/VoiceCommand/conversationTypes';
 
 interface EngineProps {
@@ -85,16 +85,17 @@ export function useConversationEngine({ catalog, onDraftComplete, onCancel }: En
     return prompt;
   }, []);
 
-  const processSpeechResult = useCallback((nlpResult: NlpResult) => {
-    const { intent, utterance } = nlpResult;
+  const processSpeechResult = useCallback((intentResult: IntentResult) => {
+    const { intent, utterance } = intentResult;
     const text = utterance.trim();
 
     console.group(`🎙️ [Engine] Ricevuto Input: "${text}"`);
-    console.log(`🧠 [Engine] Intento rilevato dal Worker NLP: ${intent}`);
-    console.log(`📦 [Engine] Stato Precedente: ${state} | Bozza Corrente:`, JSON.stringify(draft));
+    console.log(`🧠 [Engine] Intento rilevato: ${intent}`);
+    console.log(`📦 [Engine] Stato: ${state} | Bozza:`, JSON.stringify(draft));
 
+    // 1. ANNULLA
     if (intent === APP_INTENTS.CANCEL) {
-      console.log(`⛔ [Engine] Utente ha richiesto annullamento. Reset dello stato.`);
+      console.log(`⛔ [Engine] Annullamento operazione.`);
       setState('IDLE');
       setDraft({ brand: null, model: null, plate: null });
       onCancel();
@@ -103,8 +104,9 @@ export function useConversationEngine({ catalog, onDraftComplete, onCancel }: En
       return;
     }
 
+    // 2. CONFERMA (solo se siamo in stato CONFIRMING)
     if (state === 'CONFIRMING' && intent === APP_INTENTS.CONFIRM) {
-      console.log(`✅ [Engine] Utente ha confermato il salvataggio.`);
+      console.log(`✅ [Engine] Conferma salvataggio.`);
       setState('SAVING');
       speakOnly(PromptBuilder.getNextPrompt('SAVING', draft));
       onDraftComplete(draft as Required<DraftVehicle>);
@@ -112,31 +114,65 @@ export function useConversationEngine({ catalog, onDraftComplete, onCancel }: En
       return;
     }
 
-    const extracted = extractVehicleEntities(text, catalog, draft.brand);
-    const hasEntities = extracted.brand || extracted.model || extracted.plate;
-
-    if (intent === APP_INTENTS.UNKNOWN && !hasEntities) {
-      console.warn(`⚠️ [Engine] Intento Sconosciuto e nessuna entità trovata. Richiedo ripetizione.`);
-      speakAndListen("Non ho capito bene, puoi ripetere?");
+    // 3. GOTO_GARAGE (comando di navigazione)
+    if (intent === APP_INTENTS.GOTO_GARAGE) {
+      console.log(`🚗 [Engine] Navigazione al garage.`);
+      speakOnly("Apro il garage...");
+      // TODO: naviga a /garage
       console.groupEnd();
       return;
     }
 
-    const { nextDraft, needsClarification, clarificationState, candidates } = evaluateEntities(extracted, draft, memory.pendingEntity);
-    
-    console.log(`⚖️ [Engine] Valutazione completata. Nuova Bozza stimata:`, JSON.stringify(nextDraft));
+    // 4. MODIFY_FIELD o UNKNOWN → estrai entità e aggiorna bozza
+    const extracted = extractVehicleEntities(text, catalog, draft.brand);
+    const hasEntities = extracted.brand || extracted.model || extracted.plate;
 
+    // Se non ci sono entità e l'intento è UNKNOWN, chiedi ripetizione
+    if (!hasEntities && intent === APP_INTENTS.UNKNOWN) {
+      console.warn(`⚠️ [Engine] Nessuna entità trovata. Richiedo ripetizione.`);
+      speakAndListen("Non ho capito, puoi ripetere?");
+      console.groupEnd();
+      return;
+    }
+
+    // Se non ci sono entità ma l'intento è MODIFY_FIELD, l'utente potrebbe voler correggere senza dati
+    // (es. "no, non è così") → chiediamo cosa correggere
+    if (!hasEntities && intent === APP_INTENTS.MODIFY_FIELD) {
+      const pending = memory.pendingEntity || 'brand';
+      const prompt = PromptBuilder.getNextPrompt(
+        pending === 'brand' ? 'CLARIFYING_BRAND' : 
+        pending === 'model' ? 'CLARIFYING_MODEL' : 
+        'CLARIFYING_PLATE',
+        draft
+      );
+      speakAndListen(prompt);
+      console.groupEnd();
+      return;
+    }
+
+    // Valutazione entità
+    const { nextDraft, needsClarification, clarificationState, candidates } = evaluateEntities(
+      extracted,
+      draft,
+      memory.pendingEntity
+    );
+    
+    console.log(`⚖️ [Engine] Valutazione completata. Nuova bozza:`, JSON.stringify(nextDraft));
+
+    // Gestione chiarimenti
     if (needsClarification && clarificationState) {
+      // Se siamo in chiarimento targa ma l'utente non l'ha nominata, saltiamo per evitare loop
       if (clarificationState === 'CLARIFYING_PLATE' && !extracted.plate && intent !== APP_INTENTS.UNKNOWN) {
-        console.log(`[Engine] Salto chiarimento targa poichè non è stata nominata e l'intento non è sconosciuto.`);
+        console.log(`[Engine] Salto chiarimento targa (non menzionata).`);
       } else {
-        console.log(`❓ [Engine] Richiesto Chiarimento. Stato passa a: ${clarificationState}`);
+        console.log(`❓ [Engine] Richiesto chiarimento: ${clarificationState}`);
         setState(clarificationState);
         setDraft(nextDraft);
         setMemory(prev => ({ 
           ...prev, 
           lastState: clarificationState, 
-          pendingEntity: clarificationState === 'CLARIFYING_BRAND' ? 'brand' : clarificationState === 'CLARIFYING_MODEL' ? 'model' : 'plate',
+          pendingEntity: clarificationState === 'CLARIFYING_BRAND' ? 'brand' : 
+                        clarificationState === 'CLARIFYING_MODEL' ? 'model' : 'plate',
           candidateMatches: candidates 
         }));
         const prompt = PromptBuilder.getNextPrompt(clarificationState, nextDraft, candidates);
@@ -146,32 +182,12 @@ export function useConversationEngine({ catalog, onDraftComplete, onCancel }: En
       }
     }
 
-    console.log(`🚀 [Engine] Nessun chiarimento bloccante. Avanzamento lineare.`);
-    
-    // Avanziamo lo stato usando la nuova bozza calcolata
+    // Avanzamento lineare
+    console.log(`🚀 [Engine] Avanzamento lineare.`);
     const nextPrompt = advanceState(nextDraft);
-    
-    if (intent === APP_INTENTS.MODIFY_FIELD && hasEntities) {
-      const fieldCorrected = extracted.plate ? 'plate' : extracted.model ? 'model' : 'brand';
-      
-      // FIX: Verifichiamo che il campo avesse GIA' un valore nella VECCHIA bozza.
-      // Se era vuoto (null), non è una correzione ma un normale inserimento.
-      const wasAlreadyFilled = draft[fieldCorrected] !== null;
-      
-      if (wasAlreadyFilled) {
-        console.log(`✍️ [Engine] Eseguita VERA correzione per il campo: ${fieldCorrected}`);
-        const correctionPrompt = PromptBuilder.getCorrectionPrompt(fieldCorrected, (extracted[fieldCorrected]?.value as string) || '', nextPrompt);
-        speakAndListen(correctionPrompt);
-      } else {
-        console.log(`🚀 [Engine] Ignorato falso intento di modifica. Il campo ${fieldCorrected} era vuoto. Inserimento standard.`);
-        speakAndListen(nextPrompt);
-      }
-    } else {
-      speakAndListen(nextPrompt);
-    }
-    
-    // IMPORTANTE: Aggiorniamo la bozza solo alla fine dell'elaborazione
+    speakAndListen(nextPrompt);
     setDraft(nextDraft);
+    
     console.groupEnd();
   }, [state, draft, memory, catalog, onCancel, onDraftComplete, speakAndListen, speakOnly, advanceState]);
 

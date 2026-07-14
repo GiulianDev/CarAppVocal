@@ -1,6 +1,6 @@
 import { createContext, useContext, useRef, useCallback } from 'react';
 import { useVoiceCommand } from './useVoiceCommand';
-import { processVoiceText, type NlpResult } from './intentService';
+import { processVoiceText, type IntentResult } from './intentService';
 
 // ==========================================
 // TIPI
@@ -11,7 +11,7 @@ type VoiceContextType = {
   isListening: boolean;
   error: string | null;
   // Funzione che una pagina usa per registrare un handler per i risultati NLP
-  registerActionHandler: (handler: (result: NlpResult) => void) => () => void;
+  registerActionHandler: (handler: (result: IntentResult) => void) => () => void;
 };
 
 // ==========================================
@@ -24,15 +24,15 @@ export const VoiceProvider = ({ children }: { children: React.ReactNode }) => {
   const { startListening: startNativeListening, isListening, error } = useVoiceCommand();
   
   // Ref per memorizzare l'handler della pagina corrente
-  const activeHandlerRef = useRef<((result: NlpResult) => void) | null>(null);
+  const activeHandlerRef = useRef<((result: IntentResult) => void) | null>(null);
 
-  const registerActionHandler = useCallback((handler: (result: NlpResult) => void) => {
+  const registerActionHandler = useCallback((handler: (result: IntentResult) => void) => {
     activeHandlerRef.current = handler;
-    console.log("🎙️ [VoiceContext] Nuova pagina in ascolto registrata.");
+    // console.log("🎙️ [VoiceContext] Nuova pagina in ascolto registrata.");
     
     return () => {
       activeHandlerRef.current = null;
-      console.log("🎙️ [VoiceContext] Pagina disconnessa dall'ascolto.");
+      // console.log("🎙️ [VoiceContext] Pagina disconnessa dall'ascolto.");
     };
   }, []);
 
@@ -45,11 +45,11 @@ export const VoiceProvider = ({ children }: { children: React.ReactNode }) => {
       if (spokenText) {
         console.log(`🎙️ [VoiceContext] Testo catturato: "${spokenText}"`);
         
-        const nlpResult = await processVoiceText(spokenText);
-        console.log("🧠 [VoiceContext] Risultato NLP:", nlpResult);
+        const IntentResult = await processVoiceText(spokenText);
+        console.log("🧠 [VoiceContext] Risultato NLP:", IntentResult);
 
         if (activeHandlerRef.current) {
-          activeHandlerRef.current(nlpResult);
+          activeHandlerRef.current(IntentResult);
         } else {
           console.warn("🎙️ [VoiceContext] Nessuna pagina sta ascoltando i comandi vocali.");
         }
