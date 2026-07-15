@@ -27,6 +27,16 @@ export class PromptBuilder {
     draft: DraftVehicle,
     candidates: string[] = []
   ): string {
+    const prompt = PromptBuilder.buildNextPrompt(state, draft, candidates);
+    console.log(`💬 [PromptBuilder] Stato: ${state} -> "${prompt}"`);
+    return prompt;
+  }
+
+  private static buildNextPrompt(
+    state: ConversationState,
+    draft: DraftVehicle,
+    candidates: string[] = []
+  ): string {
     switch (state) {
       case 'COLLECTING':
         if (!draft.brand) return "Che auto mettiamo in garage oggi? Dimmi la marca.";
@@ -65,6 +75,8 @@ export class PromptBuilder {
     const fieldName = field === 'brand' ? 'la marca in' : field === 'model' ? 'il modello in' : 'la targa in';
     const formattedValue = field === 'plate' ? toSpokenPlate(newValue) : newValue;
     
-    return `Va bene, ho corretto ${fieldName} ${formattedValue}. ${nextPrompt}`;
+    const prompt = `Va bene, ho corretto ${fieldName} ${formattedValue}. ${nextPrompt}`;
+    console.log(`💬 [PromptBuilder] Correzione (${field}) -> "${prompt}"`);
+    return prompt;
   }
 }
