@@ -144,6 +144,16 @@ export interface ExtractedVehicleEntities {
   model: MatchConfidence | null;
   plate: MatchConfidence | null;
   brandInferred?: boolean;
+  /**
+   * Campo che l'utente stava esplicitamente cercando di correggere (es. ha
+   * detto "il modello è X"), anche quando il valore X non è stato risolto a
+   * nulla di valido nel catalogo. Senza questa informazione, un tentativo di
+   * correzione fallito è indistinguibile da un'affermazione senza alcuna
+   * entità riconoscibile — e chi chiama questa funzione (useConversationEngine)
+   * finiva per chiedere chiarimenti sul campo sbagliato, cadendo sul vecchio
+   * "pendingEntity" invece di sapere che l'utente parlava proprio del modello.
+   */
+  attemptedField?: 'brand' | 'model' | 'plate' | null;
 }
 
 function cleanTextForExtraction(raw: string): string {
@@ -383,7 +393,7 @@ export const extractVehicleEntities = (
       } else {
         console.log(`⚠️ [Parser] Targa "${plateValue}" non valida.`);
         console.groupEnd();
-        return { brand: null, model: null, plate: null, brandInferred: false };
+        return { brand: null, model: null, plate: null, brandInferred: false, attemptedField: 'plate' };
       }
     }
   }
@@ -516,13 +526,18 @@ export const extractVehicleEntities = (
   // Se abbiamo un brand estratto ma nessun modello, e non abbiamo un brand inferito, usiamo il brand estratto
   const finalBrand = brand || inferredBrand || null;
   
-  console.log(`✅ [Parser] RISULTATO FINALE: Marca=[${finalBrand?.value || 'null'}], Modello=[${model?.value || 'null'}], Targa=[${plate?.value || 'null'}], Dedotta=${brandInferred}`);
+  console.log(`✅ [Parser] RISULTATO FINALE: Marca=[${finalBrand?.value || 'null'}], Modello=[${model?.value || 'null'}], Targa=[${plate?.value || 'null'}], Dedotta=${brandInferred}, CampoTentato=[${correction.field ?? 'nessuno'}]`);
   console.groupEnd();
 
   return { 
     brand: finalBrand, 
     model, 
     plate,
-    brandInferred
+    brandInferred,
+    // Se l'utente aveva esplicitamente nominato un campo da correggere (es.
+    // "il modello è Pringles") ma non siamo comunque riusciti a risolvere
+    // nulla, lo segnaliamo qui invece di lasciare che chi chiama debba
+    // indovinare da un risultato completamente vuoto.
+    attemptedField: correction.field ?? null
   };
 };
