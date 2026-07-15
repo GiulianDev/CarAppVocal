@@ -136,15 +136,23 @@ export function useConversationEngine({ catalog, onDraftComplete, onCancel }: En
     }
 
     // Se non ci sono entità ma l'intento è MODIFY_FIELD, l'utente potrebbe voler correggere senza dati
-    // (es. "no, non è così") → chiediamo cosa correggere
+    // (es. "no, non è così") → chiediamo cosa correggere.
+    // Diamo priorità a "attemptedField": se l'utente ha esplicitamente nominato
+    // un campo (es. "il modello è Pringles") ma il valore non è stato risolto
+    // a nulla nel catalogo, dobbiamo chiedere chiarimenti su QUEL campo, non
+    // su quello che il sistema si aspettava dal turno precedente (memory.pendingEntity)
+    // — altrimenti si genera un loop: l'utente corregge il modello, il sistema
+    // continua a chiedere la targa perché era quella la prossima attesa.
     if (!hasEntities && intent === APP_INTENTS.MODIFY_FIELD) {
-      const pending = memory.pendingEntity || 'brand';
+      const pending = extracted.attemptedField || memory.pendingEntity || 'brand';
+      console.log(`❓ [Engine] Nessuna entità risolta. Chiarimento su: ${pending} (attemptedField: ${extracted.attemptedField ?? 'nessuno'}, pendingEntity: ${memory.pendingEntity ?? 'nessuno'})`);
       const prompt = PromptBuilder.getNextPrompt(
         pending === 'brand' ? 'CLARIFYING_BRAND' : 
         pending === 'model' ? 'CLARIFYING_MODEL' : 
         'CLARIFYING_PLATE',
         draft
       );
+      setMemory(prev => ({ ...prev, pendingEntity: pending }));
       speakAndListen(prompt);
       console.groupEnd();
       return;
