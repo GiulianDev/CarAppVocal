@@ -1,5 +1,5 @@
 // src/features/vehicle/utils/voiceParser.ts
-import type { MatchConfidence } from "../../../shared/VoiceCommand/conversationTypes";
+import type { MatchConfidence } from "../../../shared/VoiceCommand/core/conversationTypes";
 
 // Espansione delle parole da ignorare (rumore)
 const NOISE_WORDS = new Set([

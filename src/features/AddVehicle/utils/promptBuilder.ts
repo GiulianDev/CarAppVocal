@@ -1,5 +1,5 @@
 // src/features/vehicle/utils/promptBuilder.ts
-import type { ConversationState, DraftVehicle } from "../../../shared/VoiceCommand/conversationTypes";
+import type { ConversationState, DraftVehicle } from "../../../shared/VoiceCommand/core/conversationTypes";
 
 /**
  * Converte una targa in una forma "naturale" da leggere ad alta voce.
@@ -39,9 +39,9 @@ export class PromptBuilder {
   ): string {
     switch (state) {
       case 'COLLECTING':
-        if (!draft.brand) return "Che auto mettiamo in garage oggi? Dimmi la marca.";
+        if (!draft.brand) return "Che auto vuoi aggiungere?";
         if (!draft.model) return `Ottimo, un'auto targata ${draft.brand}. Che modello è?`;
-        if (!draft.plate) return `Perfetto, ${draft.brand} ${draft.model}. Mi detti la targa per completare il libretto?`;
+        if (!draft.plate) return `Perfetto, ${draft.brand} ${draft.model}. Qual'è la targa?`;
         return "Ho annotato tutto. Salvo e metto in garage?";
 
       case 'CLARIFYING_BRAND':

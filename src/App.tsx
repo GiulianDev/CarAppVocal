@@ -3,7 +3,7 @@ import { Header } from './features/header/Header';
 import { VoiceFab } from './shared/ui/VoiceFab';
 import { GlassCard } from './shared/ui/GlassCard';
 import { useEffect } from 'react';
-import { preloadModel } from './shared/VoiceCommand/intentService';
+import { preloadModel } from './shared/VoiceCommand/intent/intentService';
 
 
 export default function App() {

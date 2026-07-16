@@ -1,11 +1,11 @@
 // src/features/vehicle/hook/useConversationEngine.ts
 import { useState, useEffect, useCallback } from 'react';
-import { useSpeechAction } from '../../../shared/VoiceCommand/useSpeechAction';
+import { useSpeechAction } from '../../../shared/VoiceCommand/speech/useSpeechAction';
 import { useVoiceContext } from '../../../shared/VoiceCommand/VoiceContext';
 import { PromptBuilder } from '../utils/promptBuilder';
 import { extractVehicleEntities, type ExtractedVehicleEntities } from '../utils/voiceParser';
-import { APP_INTENTS, type IntentResult } from '../../../shared/VoiceCommand/intentService';
-import type { ConversationMemory, ConversationState, DraftVehicle } from '../../../shared/VoiceCommand/conversationTypes';
+import { APP_INTENTS, type IntentResult } from '../../../shared/VoiceCommand/intent/intentService';
+import type { ConversationMemory, ConversationState, DraftVehicle } from '../../../shared/VoiceCommand/core/conversationTypes';
 
 interface EngineProps {
   catalog: { brands: string[]; getModels: (brand: string) => string[] };
