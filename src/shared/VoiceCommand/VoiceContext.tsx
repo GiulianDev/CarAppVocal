@@ -1,4 +1,5 @@
 import { createContext, useContext, useRef, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useVoiceCommand } from './useVoiceCommand';
 import { processVoiceText } from './nlpService';
 
@@ -35,12 +36,14 @@ type VoiceContextType = {
 const VoiceContext = createContext<VoiceContextType | null>(null);
 
 export const VoiceProvider = ({ children }: { children: React.ReactNode }) => {
+  // Hook per il routing
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // 1. Usiamo il tuo hook nativo per gestire Capacitor/Web Speech API
   const { startListening: startNativeListening, isListening, error } = useVoiceCommand();
   
   // 2. Usiamo un ref per memorizzare la funzione "ascoltatrice" della pagina corrente.
-  // Usiamo un ref (e non uno state) perché non vogliamo che il cambio di pagina 
-  // scateni re-render inutili del Provider.
   const activeHandlerRef = useRef<((res: NlpResponse) => void) | null>(null);
 
   // 3. Metodo per registrare la pagina attiva
@@ -60,8 +63,6 @@ export const VoiceProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log("🎙️ [VoiceContext] Avvio ascolto...");
       
-      // NOTA: Dovrai modificare leggermente il tuo `useVoiceCommand` (lo vediamo tra un attimo)
-      // affinché startNativeListening() restituisca una Promise con la stringa catturata.
       const spokenText = await startNativeListening();
       
       if (spokenText) {
@@ -71,11 +72,51 @@ export const VoiceProvider = ({ children }: { children: React.ReactNode }) => {
         const nlpResult = await processVoiceText(spokenText);
         console.log("🧠 [VoiceContext] Risultato NLP:", nlpResult);
 
-        // Se c'è una pagina in ascolto (es. AddVehicleView), le passiamo il JSON
-        if (activeHandlerRef.current) {
-          activeHandlerRef.current(nlpResult);
-        } else {
-          console.warn("🎙️ [VoiceContext] Nessuna pagina sta ascoltando i comandi vocali.");
+        const { intent } = nlpResult;
+        let didNavigate = false;
+
+        // ==========================================
+        // 5. ROUTING VOCALE GLOBALE
+        // ==========================================
+        
+        if (intent === 'intent.add_vehicle') {
+          // Se non siamo già nella pagina AddVehicle, ci andiamo
+          if (!location.pathname.includes('/add-vehicle')) {
+            console.log('Navigazione vocale verso: /add-vehicle/');
+            // Passiamo l'intero risultato NLP allo state per poterlo usare subito all'arrivo
+            navigate('/add-vehicle/', { state: { voiceData: nlpResult } });
+            didNavigate = true;
+          }
+        } 
+        else if (intent === 'intent.garage') {
+          if (!location.pathname.includes('/garage')) {
+            console.log('Navigazione vocale verso: /garage/');
+            navigate('/garage/');
+            didNavigate = true;
+          }
+        } 
+        else if (intent === 'intent.calendar_all') {
+          if (!location.pathname.includes('/calendar')) {
+            console.log('Navigazione vocale verso: /calendar');
+            navigate('/calendar');
+            didNavigate = true;
+          }
+        }
+        // Nota: per 'intent.view_event', la rotta dinamica '/detail/:id/event/:eventId' 
+        // richiede di recuperare prima l'id del veicolo, quindi va gestito localmente 
+        // o con una logica di ricerca globale prima di navigare.
+
+        // ==========================================
+        // 6. ESECUZIONE HANDLER LOCALE
+        // ==========================================
+        // Se NON abbiamo navigato, significa che siamo già nella pagina giusta,
+        // oppure è un intento locale (es. conferme, annullamenti, ecc.)
+        if (!didNavigate) {
+          if (activeHandlerRef.current) {
+            activeHandlerRef.current(nlpResult);
+          } else {
+            console.warn("🎙️ [VoiceContext] Nessuna pagina sta ascoltando i comandi vocali.");
+          }
         }
       }
     } catch (err) {

@@ -1,66 +1,51 @@
-// servizio isolato che si occupi esclusivamente di capire il testo. 
-// Dato che stiamo lavorando in React (browser/Vite) e Capacitor, 
-// la sfida principale con NLP.js è evitare che cerchi di usare moduli di Node.js (come fs per leggere/scrivere file), 
-// che farebbero crashare l'app.
+// src/shared/VoiceCommand/nlpService.ts
 
 import { containerBootstrap } from '@nlpjs/core';
 import { Nlp } from '@nlpjs/nlp';
 import { LangIt } from '@nlpjs/lang-it';
 
-// Manteniamo un'istanza singola (Singleton) per evitare di riaddestrare il modello
-// a ogni rendering o cambio pagina.
 let nlpInstance: any = null;
 
 export async function initNlp() {
-  if (nlpInstance) return nlpInstance;
+  if (nlpInstance) {
+    console.log('🧠 [NLP Service] Istanza già esistente, riutilizzo...');
+    return nlpInstance;
+  }
 
-  // Inizializziamo il container. Questa API è perfetta per il browser
-  // perché non tenta di usare il FileSystem di Node.
+  console.log('🧠 [NLP Service] Inizializzazione motore NLP in corso...');
+
   const container = await containerBootstrap();
   container.use(Nlp);
   container.use(LangIt);
 
   const nlp = container.get('nlp');
-  // Fondamentale: disabilitiamo il salvataggio su disco (siamo in un browser)
   nlp.settings.autoSave = false;
 
-  // ==========================================
   // FIX 1: DISABILITARE LA PENALIZZAZIONE PAROLE SINGOLE
-  // ==========================================
-  // Impedisce a NLP.js di abbassare il punteggio (score)
-  // delle frasi composte da una sola parola (es. "sì", "no")
   if (!nlp.settings.nlu) nlp.settings.nlu = {};
   nlp.settings.nlu.useNoneFeature = false;
-
+  console.log('⚙️ [NLP Service] Settings: useNoneFeature disabilitato');
 
   nlp.addLanguage('it');
 
-
-  // ==========================================
   // FIX 2: RIMOZIONE STOPWORDS CRITICHE
-  // ==========================================
-  // Impediamo a NLP.js di scartare i nostri comandi base
   const stopwordsIt = container.get('StopwordsIt');
   if (stopwordsIt && stopwordsIt.dictionary) {
+    const originalLength = stopwordsIt.dictionary.length;
     stopwordsIt.dictionary = stopwordsIt.dictionary.filter(
       (word: string) => !['si', 'sì', 'no'].includes(word)
     );
+    console.log(`⚙️ [NLP Service] Stopwords filtrate: da ${originalLength} a ${stopwordsIt.dictionary.length} (rimossi 'si', 'no')`);
   }
 
-  // ==========================================
   // 1. REGOLE DI ESTRAZIONE ENTITÀ (NER)
-  // ==========================================
-  
-  // Targa (Infallibile)
   nlp.addNerRegexRule('it', 'plate', /[A-Za-z]{2}[\s\-]*\d{3}[\s\-]*[A-Za-z]{2}/i);
-
-  // Manteniamo solo dei fallback basici per chi parla "da robot"
   nlp.addNerAfterCondition('it', 'brand', 'marca');
   nlp.addNerAfterCondition('it', 'model', 'modello');
   
-  // ==========================================
   // 2. ADDESTRAMENTO DEGLI INTENTI (Corpus)
-  // ==========================================
+  console.log('🧠 [NLP Service] Caricamento documenti (intents)...');
+  
   const ADD_VEHICLE = 'intent.add_vehicle';
   
   // Inseriamo vari modi in cui l'utente potrebbe esprimere l'intenzione.
@@ -71,6 +56,7 @@ export async function initNlp() {
   nlp.addDocument('it', 'nuova macchina marca %brand% modello %model% la targa è %plate%', ADD_VEHICLE);
   nlp.addDocument('it', 'aggiungi la targa %plate%', ADD_VEHICLE);
   nlp.addDocument('it', 'voglio inserire una nuova auto', ADD_VEHICLE);
+  
   // Frasi naturali, anche senza le parole "marca" o "modello"
   nlp.addDocument('it', 'aggiungi un nuovo veicolo', ADD_VEHICLE);
   nlp.addDocument('it', 'inserisci auto', ADD_VEHICLE);
@@ -145,7 +131,6 @@ export async function initNlp() {
   nlp.addDocument('it', 'assicurazione', ADD_EVENT_VEHICLE);
   nlp.addDocument('it', 'bollo', ADD_EVENT_VEHICLE);
 
-
   // NUOVO INTENTO: GARAGE
   const GARAGE = 'intent.garage';
   nlp.addDocument('it', 'vai al garage', GARAGE);
@@ -171,26 +156,31 @@ export async function initNlp() {
   nlp.addDocument('it', 'mostrami il bollo', VIEW_EVENT);
   nlp.addDocument('it', 'dettagli revisione', VIEW_EVENT);
 
-
-
-
-  // ==========================================
   // 3. TRAINING DEL MODELLO
-  // ==========================================
+  console.log('🧠 [NLP Service] Avvio addestramento...');
   await nlp.train();
+  console.log('🧠 [NLP Service] Addestramento completato!');
   
   nlpInstance = nlp;
   return nlp;
 }
 
-/**
- * Funzione principale da chiamare per analizzare la voce
- */
 export async function processVoiceText(text: string) {
-  // Garantiamo che il modello sia pronto
   if (!nlpInstance) {
     await initNlp();
   }
-  // Processiamo la stringa e restituiamo il risultato JSON
-  return await nlpInstance.process('it', text);
+  console.log(`\n🗣️ === [NLP Service] ANALISI NUOVO TESTO ===`);
+  console.log(`🗣️ Input: "${text}"`);
+  
+  const result = await nlpInstance.process('it', text);
+  
+  console.log(`🎯 Intento rilevato: [${result.intent}] - Punteggio: ${result.score}`);
+  if (result.entities && result.entities.length > 0) {
+    console.log(`📦 Entità estratte:`, result.entities.map((e: any) => `${e.entity} = "${e.sourceText}"`));
+  } else {
+    console.log(`📦 Entità estratte: Nessuna`);
+  }
+  console.log(`=============================================\n`);
+  
+  return result;
 }

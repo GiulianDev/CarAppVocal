@@ -2,11 +2,14 @@ import { Outlet } from 'react-router';
 import { Header } from './features/header/Header';
 import { VoiceFab } from './shared/ui/VoiceFab';
 import { GlassCard } from './shared/ui/GlassCard';
+import { VoiceProvider } from './shared/VoiceCommand/VoiceContext';
 
 
 export default function App() {
 
   return (
+    <VoiceProvider>
+
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 relative overflow-hidden flex flex-col selection:bg-blue-500/30 selection:text-white">
       
         
@@ -36,5 +39,6 @@ export default function App() {
       <VoiceFab/>
 
     </div>
+    </VoiceProvider>
   );
 }
