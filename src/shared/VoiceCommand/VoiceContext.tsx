@@ -1,6 +1,7 @@
 import { createContext, useContext, useRef, useCallback } from 'react';
+import { processVoiceText, type IntentResult } from '../intent/intentService';
 import { useVoiceCommand } from './useVoiceCommand';
-import { processVoiceText, type IntentResult } from './intentService';
+
 
 // ==========================================
 // TIPI

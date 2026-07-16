@@ -3,6 +3,7 @@
 
 la descrizione dei voice intent è in VoiceCommand/nlpService.ts
 
+Abbiamo un app react + vite + capacitor
 L'app permette di gestire veicoli all'interno di un garage.
 La pagina di aggiunta di un veicolo permette di aggiungere tramite comandi vocali un veicolo.
 L'utente può dire frasi tipo "aggiungi un panda" e il modello, guardando dalla lista, capisce che la marca/costruttore è "fiat"

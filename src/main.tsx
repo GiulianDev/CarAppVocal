@@ -4,7 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { routes } from './router.tsx'
 import './index.css'
 import { AuthProvider } from './shared/Auth/AuthContext.tsx'
-import { VoiceProvider } from './shared/VoiceCommand/VoiceContext.tsx'
+import { VoiceProvider } from './shared/VoiceCommand/speech/VoiceContext.tsx'
 
 const router = createBrowserRouter(routes);
 

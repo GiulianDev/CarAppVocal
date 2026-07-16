@@ -1,6 +1,6 @@
 // src/features/vehicle/utils/entityExtractor.ts
 import { pipeline } from '@xenova/transformers';
-import type { MatchConfidence } from '../../../shared/VoiceCommand/core/conversationTypes';
+import type { MatchConfidence } from '../../../shared/VoiceCommand/voiceTypes';
 
 // ==========================================
 // CONFIGURAZIONE

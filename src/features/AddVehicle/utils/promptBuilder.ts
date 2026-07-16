@@ -1,5 +1,5 @@
 // src/features/vehicle/utils/promptBuilder.ts
-import type { ConversationState, DraftVehicle } from "../../../shared/VoiceCommand/core/conversationTypes";
+import type { ConversationState, DraftVehicle } from "../../../shared/VoiceCommand/voiceTypes";
 
 /**
  * Converte una targa in una forma "naturale" da leggere ad alta voce.

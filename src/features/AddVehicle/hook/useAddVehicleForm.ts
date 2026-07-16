@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGarage } from '../../../shared/Garage/useGarage';
-import type { DraftVehicle } from '../../../shared/VoiceCommand/core/conversationTypes';
+import type { DraftVehicle } from '../../../shared/VoiceCommand/voiceTypes';
 
 export function useVehicleForm() {
   const [plate, setPlate] = useState('');

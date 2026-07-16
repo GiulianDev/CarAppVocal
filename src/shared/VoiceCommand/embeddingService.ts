@@ -1,6 +1,6 @@
 // src/shared/VoiceCommand/embeddingService.ts
 import { pipeline, env } from '@xenova/transformers';
-import type { MatchConfidence } from '../core/conversationTypes';
+import type { MatchConfidence } from './voiceTypes';
 
 // ==========================================
 // CONFIGURAZIONE OFFLINE
