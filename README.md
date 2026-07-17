@@ -17,7 +17,13 @@ deve essere tutto in locale. fai una ricerca approfondita in internet. dimmi com
 
 al momento ho implementato la registrazione così con npl. dimmi come farebbe uno sviluppatore senior
 
-aspetta a modificare i file. prima devo accettare le modifiche. poi modifichiamo un file per volta. l'ide è che in base alla pagina dove ci troviamo l'app capisce già i possibili intenti. nella pagina di aggiunta di un veicolo può solo compilare il form e salvare o annullare o navigare verso altre pagine. se l'utente dice "aggiungi una panda" dobbiamo controllare che sia presente nel catalogo, e notiamo che corrisponde al costruttore fiat, quindi possiamo giua compilare il form. altrimente deve chiedere chiarimenti se ha capito bene il modello e qual'è il costruttore, o se quello che ha capito è il modello o il costruttore/marca. bisogna però gestire i casi in cui si trova nella pagina sbagliata, ad esempio se dice aggiungi una panda ma è nella pagina del garage allora deve prima essere rediretto nella pagina di aggiunta e poi il testo deve essere interpretato come funzionalità di aggiuntà di un veicolo.
+aspetta a modificare i file. prima devo accettare le modifiche. poi modifichiamo un file per volta. 
+
+l'ide è che in base alla pagina dove ci troviamo l'app capisce già i possibili intenti. nella pagina di aggiunta di un veicolo può solo compilare il form e salvare o annullare o navigare verso altre pagine. se l'utente dice "aggiungi una panda" dobbiamo controllare che sia presente nel catalogo, e notiamo che corrisponde al costruttore fiat, quindi possiamo giua compilare il form. altrimente deve chiedere chiarimenti se ha capito bene il modello e qual'è il costruttore, o se quello che ha capito è il modello o il costruttore/marca. bisogna però gestire i casi in cui si trova nella pagina sbagliata, ad esempio se dice aggiungi una panda ma è nella pagina del garage allora deve prima essere rediretto nella pagina di aggiunta e poi il testo deve essere interpretato come funzionalità di aggiuntà di un veicolo.
+
+Quali tecnologie useresti per implemetare i comandi vocali in modo che l'utente possa dialogare con l'app in modo naturale?
+
+
 
 # COMANDI
 
