@@ -24,7 +24,7 @@ interface AddVehicleVoiceFlowProps {
 
 type WaitState = 'brand' | 'model' | 'plate' | 'confirm_save' | null;
 
-// Helper: Distanza di Levenshtein (misura quanto due stringhe sono simili)
+// Helper: Distanza di Levenshtein per correzioni fonetiche (es. Banda -> Panda)
 const levenshtein = (a: string, b: string): number => {
   const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
   for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
@@ -32,17 +32,13 @@ const levenshtein = (a: string, b: string): number => {
   for (let i = 1; i <= a.length; i++) {
     for (let j = 1; j <= b.length; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,
-        matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost
-      );
+      matrix[i][j] = Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost);
     }
   }
   return matrix[a.length][b.length];
 };
 
-// Helper: Ricerca Parola Esatta (evita che la 'g' di 'aggiungi' diventi il modello 'G')
+// Helper: Controllo esatto sulle parole isolate
 const exactMatch = (text: string, search: string) => {
   const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
@@ -77,46 +73,35 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
       const wordsArray = cleanAnswer.split(/\s+/);
 
       // =======================================================
-      // 🔥 SHIELD: BLINDATURA INTELLIGENTE DEGLI INTENTI GLOBALI
+      // 🔥 SHIELD: EVENT CONSUMPTION E BLOCCO NAVIGAZIONE
       // =======================================================
-      let activeIntent = nlpResult.intent;
-      
-      // Controllo se c'è un'esplicita volontà di scappare dal form
       const abortWords = ['annulla', 'fermati', 'basta', 'esci', 'interrompi', 'garage'];
       const isExplicitAbort = abortWords.some(w => wordsArray.includes(w)) || 
                               (wordsArray.includes('no') && wordsArray.includes('basta')) ||
                               (wordsArray.includes('vai') && wordsArray.includes('garage'));
 
-      const globalNavigationIntents = ['intent.garage', 'intent.calendar_all', 'intent.view_event'];
-      
-      if (currentWaitingFor !== null && globalNavigationIntents.includes(activeIntent)) {
-         if (isExplicitAbort) {
-            console.log('🛑 [Intent Shield] Abort esplicito o navigazione forzata. Permetto l\'azione.');
-            setWaitingFor(null);
-            currentActions.resetForm();
-            // Ritorna qui per lasciare che VoiceContext gestisca la navigazione globale verso il garage
-            return; 
-         } else {
-            console.warn(`🛡️ [Intent Shield] Falso positivo di navigazione ("${activeIntent}"). Lo blocco e tratto come testo.`);
-            activeIntent = 'none'; 
-            nlpResult.intent = 'none'; // Soppressione totale per il dispatcher genitore
-         }
+      // Blocchiamo il genitore se siamo in attesa di un dato e non c'è richiesta di annullamento esplicito
+      const blockGlobalContext = currentWaitingFor !== null && !isExplicitAbort;
+
+      if (isExplicitAbort) {
+        console.log('🛑 [Fase 0] Uscita esplicita. Chiudo il form e lascio il controllo al globale.');
+        setWaitingFor(null);
+        currentActions.resetForm();
+        if (nlpResult.intent === 'none') speakOnly("D'accordo, operazione annullata.");
+        
+        // Ritorna false in modo che il VoiceContext globale esegua l'intento di navigazione
+        return false; 
+      }
+
+      if (blockGlobalContext) {
+         console.log('🛡️ [Intent Shield] Form attivo: Blocco la propagazione verso il VoiceContext globale.');
+         nlpResult.intent = 'none'; // Neutralizza localmente gli intenti di navigazione errati
       }
 
       console.group('🔄 [VoiceFlow] Inizio elaborazione handler locale stabilizzato');
       console.log(`📌 Stato d'attesa al momento dell'ascolto: [${currentWaitingFor}]`);
-      console.log(`🎯 Intento filtrato: [${activeIntent}]`);
-
-      // FASE 0: GLOBAL ABORT PURO (Senza intenti di navigazione)
-      if (isExplicitAbort && activeIntent === 'none') {
-        console.log('🛑 [Fase 0] Annullamento globale locale richiesto.');
-        setWaitingFor(null);
-        currentActions.resetForm();
-        speakOnly("D'accordo, operazione annullata.");
-        console.groupEnd();
-        return; 
-      }
-
+      
+      const activeIntent = nlpResult.intent;
       const isConfirm = activeIntent === 'intent.confirm' || ['si', 'sì', 'ok', 'certo', 'confermo', 'esatto'].some(w => wordsArray.includes(w));
       const isCancel = activeIntent === 'intent.cancel' || ['no', 'sbagliato'].some(w => wordsArray.includes(w));
 
@@ -149,7 +134,7 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
         currentActions.setPlate(foundPlate); 
       }
 
-      // Ricerca Marca (Parola intera)
+      // Marca
       const nlpBrand = nlpResult.entities?.find((e: any) => e.entity === 'brand')?.sourceText;
       if (nlpBrand) {
         foundBrand = nlpBrand;
@@ -162,7 +147,6 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
         }
       }
 
-      // Smart Clean
       if (foundBrand !== currentForm.brand && foundModel && foundBrand) {
         const validModelsForNewBrand = currentCatalog.getModelsForBrand(foundBrand).map(m => m.toLowerCase());
         if (!validModelsForNewBrand.includes(foundModel.toLowerCase())) {
@@ -171,28 +155,23 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
         }
       }
 
-      // Ricerca Modello (Exact Match + Fuzzy Match)
+      // Modello
       const nlpModel = nlpResult.entities?.find((e: any) => e.entity === 'model')?.sourceText;
       if (nlpModel) {
         foundModel = nlpModel;
         currentActions.setModel(foundModel);
       } else {
-        // Prepariamo la lista dei modelli in cui cercare
         const modelsToSearch = foundBrand 
             ? currentCatalog.getModelsForBrand(foundBrand) 
             : currentCatalog.brands.flatMap(b => currentCatalog.getModelsForBrand(b));
 
-        // 1. Prova Exact Match (con word boundaries)
         let catalogModel = modelsToSearch.find(m => exactMatch(cleanAnswer, m));
 
-        // 2. Prova Fuzzy Match se non trova quello esatto (La magia Banda -> Panda)
         if (!catalogModel) {
             for (const m of modelsToSearch) {
                 const mLower = m.toLowerCase();
-                // Controllo solo modelli a parola singola lunghi almeno 4 caratteri
                 if (!mLower.includes(' ') && mLower.length >= 4) {
                     for (const w of wordsArray) {
-                        // Se la parola ha una lunghezza simile al modello (+/- 1 carattere)
                         if (w.length >= 4 && Math.abs(w.length - mLower.length) <= 1) {
                             if (levenshtein(w, mLower) <= 1) {
                                 catalogModel = m;
@@ -209,11 +188,8 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
         if (catalogModel) {
             foundModel = catalogModel;
             currentActions.setModel(catalogModel);
-            // Se eravamo senza marca, inferiamo la marca dal modello trovato
             if (!foundBrand) {
-                const inferredBrand = currentCatalog.brands.find(b => 
-                    currentCatalog.getModelsForBrand(b).includes(catalogModel as string)
-                );
+                const inferredBrand = currentCatalog.brands.find(b => currentCatalog.getModelsForBrand(b).includes(catalogModel as string));
                 if (inferredBrand) {
                     console.log(`🧠 [Smart Match] Inferita la marca automatica: "${inferredBrand}" dal modello "${catalogModel}"`);
                     foundBrand = inferredBrand;
@@ -260,7 +236,9 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
           askAndListen("Scusami, non ho capito. Vuoi salvare il veicolo?", 'confirm_save'); 
         }
         console.groupEnd();
-        return;
+        
+        // Ritorna il booleano per completare la propagazione in questa fase
+        return blockGlobalContext;
       }
 
       if (!foundBrand) {
@@ -277,6 +255,9 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoi
       }
 
       console.groupEnd();
+      
+      // 🔥 Ritorna `true` quando il form è attivo, avvisando VoiceContext di fermarsi
+      return blockGlobalContext; 
     });
 
     return () => {
