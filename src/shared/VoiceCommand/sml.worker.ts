@@ -1,9 +1,5 @@
 import { pipeline, env } from '@xenova/transformers';
 
-// Configurazione della cache nel browser
-env.allowLocalModels = false;
-env.useBrowserCache = true;
-
 // Definiamo i tipi di intenti supportati
 const INTENTS = [
   'intent.add_vehicle',
@@ -13,13 +9,33 @@ const INTENTS = [
   'intent.calendar_all'
 ];
 
+// ==========================================
+// CONFIGURAZIONE 100% LOCALE / OFFLINE
+// ==========================================
+// Blocca le chiamate di rete verso Hugging Face
+env.allowRemoteModels = false; 
+
+// Abilita i modelli locali
+env.allowLocalModels = true; 
+
+// Imposta il percorso relativo alla cartella `public`
+env.localModelPath = '/models/';
+
+// Usa la cache del browser per caricamenti ancora più veloci
+env.useBrowserCache = true;
+
+// ==========================================
+// INIZIALIZZAZIONE PIPELINE
+// ==========================================
 let classifierPromise: Promise<any> | null = null;
 
-// Lazy initialization della pipeline di Zero-Shot Classification
 async function getClassifier() {
   if (!classifierPromise) {
-    // Usiamo un modello ultra-leggero e veloce (~40MB, scaricato solo la prima volta)
-    classifierPromise = pipeline('zero-shot-classification', 'Xenova/typeform-distilbert-base-uncased-mnli');
+    // Passiamo solo il nome della cartella presente sotto /public/models/
+    classifierPromise = pipeline(
+      'zero-shot-classification', 
+      'typeform-distilbert-base-uncased-mnli'
+    );
   }
   return classifierPromise;
 }
