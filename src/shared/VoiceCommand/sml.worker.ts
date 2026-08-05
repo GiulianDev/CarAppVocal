@@ -1,116 +1,124 @@
 import { pipeline, env } from '@xenova/transformers';
+import type { WorkerCommand, VoiceIntent, VoiceEntities, WorkerResponse } from './types';
 
-// Definiamo i tipi di intenti supportati
-const INTENTS = [
-  'intent.add_vehicle',
-  'intent.add_event',
-  'intent.set_favorite',
-  'intent.garage',
-  'intent.calendar_all'
-];
-
-// ==========================================
-// CONFIGURAZIONE 100% LOCALE / OFFLINE
-// ==========================================
-// Blocca le chiamate di rete verso Hugging Face
-env.allowRemoteModels = false; 
-
-// Abilita i modelli locali
-env.allowLocalModels = true; 
-
-// Imposta il percorso relativo alla cartella `public`
+env.allowRemoteModels = false;
+env.allowLocalModels = true;
 env.localModelPath = '/models/';
-
-// Usa la cache del browser per caricamenti ancora più veloci
 env.useBrowserCache = true;
 
-// ==========================================
-// INIZIALIZZAZIONE PIPELINE
-// ==========================================
-let classifierPromise: Promise<any> | null = null;
+const INTENT_CANDIDATES = [
+  'confermare salvare procedere esatto si',
+  'annullare fermarsi cancellare uscire no basta',
+  'andare aprire garage lista auto'
+];
 
-async function getClassifier() {
-  if (!classifierPromise) {
-    // Passiamo solo il nome della cartella presente sotto /public/models/
-    classifierPromise = pipeline(
-      'zero-shot-classification', 
-      'typeform-distilbert-base-uncased-mnli'
-    );
+const INTENT_MAP: Record<string, VoiceIntent> = {
+  'confermare salvare procedere esatto si': 'CONFIRM',
+  'annullare fermarsi cancellare uscire no basta': 'CANCEL',
+  'andare aprire garage lista auto': 'NAVIGATE_GARAGE'
+};
+
+const NLU_STOP_WORDS = new Set([
+  'aggiungi', 'inserisci', 'metti', 'crea', 'nuovo', 'nuova', 
+  'un', 'una', 'uno', 'il', 'la', 'lo', 'i', 'gli', 'le',
+  'auto', 'macchina', 'veicolo', 'vettura', 'della', 'del', 'di', 'è', 'e', 'con', 'in', 'a', 'da', 'che',
+  'no', 'non', 'invece', 'si', 'scrive', 'scritto', 'lettera', 'come', // Aggiunte per lo spelling
+  'sbagliato', 'corretto', 'errore', 'cambia', 'modifica', 'modificare', 'devi',
+  'voglio', 'vorrei', 'dovere', 'modello', 'marca', 'targa',
+  'aspetta', 'attendi', 'guarda', 'ascolta', 'dico', 'dica', 'cioè', 'insomma', 'scusa', 'scusami',
+  'salva', 'salvare', 'conferma', 'confermare', 'procedi', 'registra'
+]);
+
+let classifier: any = null;
+
+async function initModel() {
+  if (!classifier) {
+    classifier = await pipeline('zero-shot-classification', 'typeform-distilbert-base-uncased-mnli');
   }
-  return classifierPromise;
 }
 
-// Helper interno per estrarre entità chiave tramite regex/pattern contestuali
-function extractEntities(text: string) {
-  const entities: any[] = [];
-  const lower = text.toLowerCase();
+function cleanUtterance(text: string): string {
+  const words = text.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").split(/\s+/);
+  return words.filter(word => !NLU_STOP_WORDS.has(word) && word.length > 0).join(' ').trim();
+}
 
-  // 1. Estrazione Importo / Costo (es. 150€, 80 euro)
-  const costMatch = text.match(/(\d+[\.,]?\d*)\s*(euro|€)/i) || text.match(/(speso|costo|pagato)\s*(\d+)/i);
-  if (costMatch) {
-    const val = parseFloat((costMatch[1] || costMatch[2]).replace(',', '.'));
-    entities.push({
-      entity: 'cost',
-      sourceText: costMatch[0],
-      resolution: { value: val, unit: 'EUR' }
-    });
-  }
-
-  // 2. Estrazione Tipo Evento (tagliando, bollo, revisione, assicurazione, riparazione)
-  const eventTypes = ['tagliando', 'bollo', 'revisione', 'assicurazione', 'riparazione', 'cambio gomme', 'lavaggio'];
-  for (const type of eventTypes) {
-    if (lower.includes(type)) {
-      entities.push({
-        entity: 'event_type',
-        sourceText: type,
-        resolution: { value: type }
-      });
-      break;
+self.onmessage = async (event: MessageEvent<WorkerCommand>) => {
+  if (event.data.type === 'INIT') {
+    try {
+      await initModel();
+      self.postMessage({ type: 'READY' } as WorkerResponse);
+    } catch (err: any) {
+      self.postMessage({ type: 'ERROR', payload: { error: err?.message } } as WorkerResponse);
     }
+    return;
   }
 
-  // 3. Estrazione Targa (formato standard italiano: 2 lettere, 3 cifre, 2 lettere)
-  const plateMatch = text.match(/\b[A-Za-z]{2}\s*\d{3}\s*[A-Za-z]{2}\b/i);
-  if (plateMatch) {
-    entities.push({
-      entity: 'plate',
-      sourceText: plateMatch[0],
-      resolution: { value: plateMatch[0].replace(/\s+/g, '').toUpperCase() }
-    });
-  }
+  if (event.data.type === 'ANALYZE') {
+    try {
+      const text = event.data.payload.text;
+      const lower = text.toLowerCase().trim();
+      
+      const entities: VoiceEntities = {};
+      let intent: VoiceIntent = 'UNKNOWN';
 
-  return entities;
-}
+      const cleanString = cleanUtterance(text);
+      entities.extractedText = cleanString;
 
-// Gestore dei messaggi inviati al Web Worker
-self.onmessage = async (event: MessageEvent<{ text: string }>) => {
-  const { text } = event.data;
+      // Estrazione Target
+      if (/\b(targa)\b/i.test(lower)) entities.targetField = 'plate';
+      else if (/\b(modello)\b/i.test(lower)) entities.targetField = 'model';
+      else if (/\b(marca|brand)\b/i.test(lower)) entities.targetField = 'brand';
 
-  try {
-    const classifier = await getClassifier();
-    
-    // Classificazione dell'intento con l'SML
-    const output = await classifier(text, INTENTS);
-    
-    const topIntent = output.labels[0];
-    const topScore = output.scores[0];
+      // Estrazione Targa (RegEx Sicura)
+      const plateRegexes = [
+        /\b[A-Z]{2}\s*\d{3}\s*[A-Z]{2}\b/i,       // 🇮🇹 Italia / 🇫🇷 Francia (AB 123 CD)
+        /\b\d{4}\s*[A-Z]{3}\b/i,                  // 🇪🇸 Spagna (1234 ABC)
+        /\b[A-Z]{1,3}\s*\d{3,6}\b/i,              //🇨🇭 Svizzera / Vecchia 🇮🇹 (ZH 123456)
+        /\b[A-Z]{1,3}\s*[A-Z]{1,2}\s*\d{1,4}\b/i, // 🇩🇪 Germania (M AB 1234)
+        /\b[A-Z]{2}\s*\d{2}\s*[A-Z]{3}\b/i        // 🇬🇧 Regno Unito (AB 12 CDE)
+      ];
 
-    // Estrazione entità
-    const entities = extractEntities(text);
-
-    self.postMessage({
-      status: 'success',
-      result: {
-        intent: topScore > 0.35 ? topIntent : 'intent.unknown',
-        score: topScore,
-        entities,
-        utterance: text
+      let foundPlate = null;
+      for (const rx of plateRegexes) {
+        const match = text.match(rx);
+        if (match) {
+          foundPlate = match[0];
+          break;
+        }
       }
-    });
-  } catch (error: any) {
-    self.postMessage({
-      status: 'error',
-      error: error?.message || 'Errore durante l\'elaborazione SML'
-    });
+
+      if (foundPlate) {
+        entities.plate = foundPlate.replace(/\s+/g, '').toUpperCase();
+      }
+
+      // Routing Intenti Contestuale
+      const isExplicitCancelAction = /\b(annulla|esci|basta|fermati)\b/i.test(lower);
+      const isJustNo = /\b(no|non)\b/i.test(lower) && cleanString === '' && !entities.targetField;
+      const isJustYes = /\b(si|sì|ok|salva|confermo|esatto|va bene|certo|procedi|registra)\b/i.test(lower) && !/\b(no|non)\b/i.test(lower) && cleanString === '' && !entities.targetField;
+      const isCorrection = /\b(no|non|invece|sbagliato|errore|cambia|modifica|modificare|correggi|aspetta|scusa|scusami)\b/i.test(lower);
+
+      if (isExplicitCancelAction || isJustNo) intent = 'CANCEL';
+      else if (isJustYes) intent = 'CONFIRM';
+      else if (isCorrection) intent = 'FORM_CORRECT_FIELD';
+      else if (/\b(aggiungi|inserisci|nuova auto|nuovo veicolo)\b/i.test(lower)) intent = 'ADD_VEHICLE';
+      else if (entities.targetField || /\b(è|sono|chiama)\b/i.test(lower) || cleanString.length > 0) intent = 'FORM_FILL_FIELD';
+      else {
+          await initModel();
+          const output = await classifier(text, INTENT_CANDIDATES);
+          if (output.scores[0] > 0.4) intent = INTENT_MAP[output.labels[0]] || 'UNKNOWN';
+      }
+
+      if (intent === 'FORM_CORRECT_FIELD' || intent === 'FORM_FILL_FIELD' || intent === 'ADD_VEHICLE') {
+          entities.correctedValue = (entities.targetField === 'plate' && entities.plate) ? entities.plate : cleanString;
+      }
+
+      self.postMessage({
+        type: 'ANALYSIS_COMPLETE',
+        payload: { intent, confidence: 1, entities, rawText: text }
+      } as WorkerResponse);
+
+    } catch (err: any) {
+      self.postMessage({ type: 'ERROR', payload: { error: err?.message } } as WorkerResponse);
+    }
   }
 };

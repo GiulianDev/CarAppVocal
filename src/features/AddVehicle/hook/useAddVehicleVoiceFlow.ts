@@ -1,270 +1,224 @@
-// src/features/vehicles/hooks/useAddVehicleVoiceFlow.ts
-import { useState, useEffect, useRef } from 'react';
-import { useSpeechAction } from '../../../shared/VoiceCommand/useSpeechAction';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import Fuse from 'fuse.js';
 import { useVoiceContext } from '../../../shared/VoiceCommand/VoiceContext';
+import { useSpeechAction } from '../../../shared/VoiceCommand/useSpeechAction';
+import type { VoiceAnalysisResult, VoiceEntities } from '../../../shared/VoiceCommand/types';
 
-interface AddVehicleVoiceFlowProps {
-  catalog: {
-    brands: string[];
-    getModelsForBrand: (brand: string) => string[];
-  };
-  form: {
-    plate: string;
-    brand: string;
-    model: string;
-  };
+export type Step = 
+  | 'IDLE' 
+  | 'WAITING_BRAND' 
+  | 'WAITING_MODEL' 
+  | 'WAITING_PLATE' 
+  | 'WAITING_CONFIRM'
+  | 'CONFIRM_UNKNOWN_BRAND'
+  | 'CONFIRM_UNKNOWN_MODEL';
+
+interface VoiceFlowProps {
+  catalog: { brands: string[]; getModelsForBrand: (brand: string) => string[]; };
+  form: { plate: string; brand: string; model: string };
   actions: {
-    setPlate: (plate: string) => void;
-    setBrand: (brand: string) => void;
-    setModel: (model: string) => void;
-    performSave: () => boolean;
+    setPlate: (val: string) => void; 
+    setBrand: (val: string) => void;
+    setModel: (val: string) => void; 
+    performSave: () => boolean; 
     resetForm: () => void;
   };
 }
 
-type WaitState = 'brand' | 'model' | 'plate' | 'confirm_save' | null;
+export function useAddVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProps) {
+  const [step, setStep] = useState<Step>('IDLE');
+  const [candidateValue, setCandidateValue] = useState<string>(''); // Memorizza il valore ignoto in attesa di conferma
 
-// Helper: Distanza di Levenshtein per correzioni fonetiche (es. Banda -> Panda)
-const levenshtein = (a: string, b: string): number => {
-  const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
-  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
-  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost);
-    }
-  }
-  return matrix[a.length][b.length];
-};
-
-// Helper: Controllo esatto sulle parole isolate
-const exactMatch = (text: string, search: string) => {
-  const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
-};
-
-export function useAddVehicleVoiceFlow({ catalog, form, actions }: AddVehicleVoiceFlowProps) {
-  const [waitingFor, setWaitingFor] = useState<WaitState>(null);
   const { registerActionHandler } = useVoiceContext();
   const { speakAndListen, speakOnly } = useSpeechAction();
 
-  const latestPropsRef = useRef({ catalog, form, actions, waitingFor });
-  
-  useEffect(() => {
-    latestPropsRef.current = { catalog, form, actions, waitingFor };
-  });
+  const globalFuse = useMemo(() => {
+    const entries: { brand: string; model: string; type: 'brand' | 'model'; searchKey: string }[] = [];
+    catalog.brands.forEach(brand => {
+      entries.push({ brand, model: '', type: 'brand', searchKey: brand });
+      catalog.getModelsForBrand(brand).forEach(model => {
+        entries.push({ brand, model, type: 'model', searchKey: model });
+        entries.push({ brand, model, type: 'model', searchKey: `${brand} ${model}` });
+      });
+    });
+    // Threshold alzato a 0.4 per essere più permissivi con il catalogo, oltre il 0.4 è considerato "sconosciuto"
+    return new Fuse(entries, { keys: ['searchKey'], threshold: 0.4, includeScore: true });
+  }, [catalog]);
 
-  const askAndListen = (question: string, expectedField: WaitState = null) => {
-    console.log(`🔊 [VoiceFlow - TTS] TTS pronuncia: "${question}"`);
-    console.log(`⏳ [VoiceFlow - State] Stato d'attesa impostato su: [${expectedField || 'Nessuno'}]`);
-    setWaitingFor(expectedField);
-    speakAndListen(question);
+  const ref = useRef({ form, actions, step, candidateValue, globalFuse });
+  useEffect(() => { ref.current = { form, actions, step, candidateValue, globalFuse }; });
+
+  const promptUser = (text: string, nextStep: Step) => {
+    console.log(`🚗 [VoiceFlow] 🔄 [${ref.current.step}] ➔ [${nextStep}] | 🗣️ "${text}"`);
+    setStep(nextStep);
+    speakAndListen(text);
+  };
+
+  const handleCancel = () => {
+    const { step } = ref.current;
+    if (step === 'CONFIRM_UNKNOWN_MODEL') {
+       return promptUser("Ok, nessun problema. Dimmi il nome corretto del modello.", 'WAITING_MODEL');
+    }
+    if (step === 'CONFIRM_UNKNOWN_BRAND') {
+       return promptUser("Ok, riproviamo. Qual è la marca corretta?", 'WAITING_BRAND');
+    }
+    
+    ref.current.actions.resetForm();
+    setStep('IDLE');
+    speakOnly("Operazione annullata.");
+  };
+
+  const handleConfirm = () => {
+    const { actions, step, candidateValue } = ref.current;
+    
+    if (step === 'CONFIRM_UNKNOWN_MODEL') {
+       actions.setModel(candidateValue);
+       return promptUser(`Ottimo, modello salvato come ${candidateValue}. Qual è la targa?`, 'WAITING_PLATE');
+    }
+    if (step === 'CONFIRM_UNKNOWN_BRAND') {
+       actions.setBrand(candidateValue);
+       return promptUser(`Perfetto, marca salvata come ${candidateValue}. Qual è il modello?`, 'WAITING_MODEL');
+    }
+    if (step === 'WAITING_CONFIRM' || step === 'WAITING_PLATE') {
+      if (actions.performSave()) {
+        speakOnly("Veicolo salvato con successo!");
+        setStep('IDLE');
+      } else {
+        promptUser("Dati incompleti. Qual è la marca?", 'WAITING_BRAND');
+      }
+    } else {
+      promptUser("Non ho capito cosa confermare. In che step ti posso aiutare?", step);
+    }
+  };
+
+  const handleFillOrCorrect = (entities: VoiceEntities, intent: string) => {
+    const { form, actions, step, globalFuse } = ref.current;
+    const { targetField, extractedText, plate } = entities;
+    const query = extractedText || '';
+
+    // 0. Fallback vuoto
+    if (!query && !plate) {
+       if (step === 'WAITING_BRAND') return promptUser("Qual è la marca del veicolo?", 'WAITING_BRAND');
+       if (step === 'WAITING_MODEL') return promptUser(`Qual è il modello della tua ${form.brand || 'auto'}?`, 'WAITING_MODEL');
+       if (step === 'WAITING_PLATE') return promptUser("Qual è la targa?", 'WAITING_PLATE');
+       return promptUser("Puoi ripetere?", step);
+    }
+
+    // 1. Targa Assoluta
+    if (plate || targetField === 'plate') {
+      const finalPlate = plate || query.replace(/\s/g, '').toUpperCase();
+      if (finalPlate) {
+        actions.setPlate(finalPlate);
+        return promptUser(`Targa ${finalPlate} acquisita. Salvo il veicolo?`, 'WAITING_CONFIRM');
+      }
+    }
+
+    // 2. Correzione Esplicita ("No il modello è Sweng")
+    if (targetField === 'model' && query) {
+       const searchResults = globalFuse.search(query);
+       const bestMatch = searchResults[0]?.item;
+       const score = searchResults[0]?.score ?? 1;
+
+       // Se è un match perfetto, lo accetta a occhi chiusi
+       if (bestMatch && bestMatch.type === 'model' && score <= 0.25) {
+          actions.setBrand(bestMatch.brand); 
+          actions.setModel(bestMatch.model);
+          return promptUser(`Modello aggiornato a ${bestMatch.brand} ${bestMatch.model}. Qual è la targa?`, 'WAITING_PLATE');
+       } else {
+          // Altrimenti, chiede conferma per lo spelling insolito
+          setCandidateValue(query);
+          return promptUser(`Non ho trovato "${query}" in archivio. Confermi che il modello è "${query}"?`, 'CONFIRM_UNKNOWN_MODEL');
+       }
+    }
+
+    if (targetField === 'brand' && query) {
+       const bestMatch = globalFuse.search(query)[0]?.item;
+       const score = globalFuse.search(query)[0]?.score ?? 1;
+       
+       if (bestMatch && bestMatch.type === 'brand' && score <= 0.3) {
+          actions.setBrand(bestMatch.brand);
+          actions.setModel(''); 
+          return promptUser(`Marca corretta in ${bestMatch.brand}. Dimmi il modello.`, 'WAITING_MODEL');
+       } else {
+          setCandidateValue(query);
+          return promptUser(`Non conosco la marca "${query}". Confermi di volerla usare?`, 'CONFIRM_UNKNOWN_BRAND');
+       }
+    }
+
+    // 3. Ricerca Globale e "Leftover Extraction" (Es: "Aggiungi una Fiat Swang")
+    if (query) {
+      const bestMatch = globalFuse.search(query)[0]?.item;
+      const score = globalFuse.search(query)[0]?.score ?? 1;
+
+      if (bestMatch && score <= 0.4) {
+        if (bestMatch.type === 'model') {
+          // Es: "Aggiungi Panda" -> Trova Fiat Panda
+          actions.setBrand(bestMatch.brand);
+          actions.setModel(bestMatch.model);
+          return promptUser(`Ho impostato ${bestMatch.brand} ${bestMatch.model}. Qual è la targa?`, 'WAITING_PLATE');
+        }
+        
+        if (bestMatch.type === 'brand') {
+          // Es: "Aggiungi Skoda" oppure "Aggiungi Fiat Swang"
+          actions.setBrand(bestMatch.brand);
+          
+          // Estrae eventuale testo residuo dalla query (es: "fiat swang" -> toglie "fiat" -> "swang")
+          const leftover = query.toLowerCase().replace(bestMatch.brand.toLowerCase(), '').trim();
+          
+          if (leftover) {
+             setCandidateValue(leftover);
+             return promptUser(`Non conosco il modello "${leftover}". Confermi di volerlo aggiungere alla tua ${bestMatch.brand}?`, 'CONFIRM_UNKNOWN_MODEL');
+          } else {
+             actions.setModel('');
+             return promptUser(`Marca impostata su ${bestMatch.brand}. Qual è il modello?`, 'WAITING_MODEL');
+          }
+        }
+      } else {
+        // La stringa non corrisponde a nulla nel catalogo (Es: "Aggiungi una Tesla Cybertruck")
+        // Facciamo fallback sullo step corrente, chiedendo conferme specifiche
+        if (step === 'WAITING_BRAND' || step === 'IDLE') {
+           setCandidateValue(query);
+           return promptUser(`Non ho trovato "${query}" in listino. Confermi che è la marca dell'auto?`, 'CONFIRM_UNKNOWN_BRAND');
+        }
+      }
+    }
+
+    // 4. Fallback Progressivo Base
+    if (step === 'WAITING_MODEL' && query) {
+       setCandidateValue(query);
+       return promptUser(`Non sono sicuro del modello "${query}". Confermi che è corretto?`, 'CONFIRM_UNKNOWN_MODEL');
+    }
+    
+    if (!form.brand) return promptUser("Non ho capito. Qual è la marca del veicolo?", 'WAITING_BRAND');
+    if (!form.model) return promptUser(`Qual è il modello della tua ${form.brand}?`, 'WAITING_MODEL');
+    if (!form.plate) return promptUser(`Dimmi la targa per la ${form.brand} ${form.model}.`, 'WAITING_PLATE');
+
+    return promptUser("Scusa, non ho capito. Puoi ripetere?", step);
   };
 
   useEffect(() => {
-    console.log("🎙️ [VoiceFlow] Sottoscrizione Handler Vocale Unico.");
-    
-    const cleanup = registerActionHandler((nlpResult) => {
-      const { catalog: currentCatalog, form: currentForm, actions: currentActions, waitingFor: currentWaitingFor } = latestPropsRef.current;
+    const unregister = registerActionHandler((result: VoiceAnalysisResult): boolean => {
+      console.group(`🚗 [VoiceFlow] Ricevuto Intento: ${result.intent}`);
+      console.log(`Dati Entità:`, result.entities);
 
-      const rawAnswer = nlpResult.utterance.toLowerCase();
-      const cleanAnswer = rawAnswer.replace(/[.,!?]/g, '').trim();
-      const wordsArray = cleanAnswer.split(/\s+/);
-
-      // =======================================================
-      // 🔥 SHIELD: EVENT CONSUMPTION E BLOCCO NAVIGAZIONE
-      // =======================================================
-      const abortWords = ['annulla', 'fermati', 'basta', 'esci', 'interrompi', 'garage'];
-      const isExplicitAbort = abortWords.some(w => wordsArray.includes(w)) || 
-                              (wordsArray.includes('no') && wordsArray.includes('basta')) ||
-                              (wordsArray.includes('vai') && wordsArray.includes('garage'));
-
-      // Blocchiamo il genitore se siamo in attesa di un dato e non c'è richiesta di annullamento esplicito
-      const blockGlobalContext = currentWaitingFor !== null && !isExplicitAbort;
-
-      if (isExplicitAbort) {
-        console.log('🛑 [Fase 0] Uscita esplicita. Chiudo il form e lascio il controllo al globale.');
-        setWaitingFor(null);
-        currentActions.resetForm();
-        if (nlpResult.intent === 'none') speakOnly("D'accordo, operazione annullata.");
-        
-        // Ritorna false in modo che il VoiceContext globale esegua l'intento di navigazione
-        return false; 
-      }
-
-      if (blockGlobalContext) {
-         console.log('🛡️ [Intent Shield] Form attivo: Blocco la propagazione verso il VoiceContext globale.');
-         nlpResult.intent = 'none'; // Neutralizza localmente gli intenti di navigazione errati
-      }
-
-      console.group('🔄 [VoiceFlow] Inizio elaborazione handler locale stabilizzato');
-      console.log(`📌 Stato d'attesa al momento dell'ascolto: [${currentWaitingFor}]`);
-      
-      const activeIntent = nlpResult.intent;
-      const isConfirm = activeIntent === 'intent.confirm' || ['si', 'sì', 'ok', 'certo', 'confermo', 'esatto'].some(w => wordsArray.includes(w));
-      const isCancel = activeIntent === 'intent.cancel' || ['no', 'sbagliato'].some(w => wordsArray.includes(w));
-
-      let foundPlate = currentForm.plate;
-      let foundBrand = currentForm.brand;
-      let foundModel = currentForm.model;
-
-      // =======================================================
-      // FASE 1: CORREZIONI E BACKTRACK INTELLIGENTE
-      // =======================================================
-      if (isCancel || cleanAnswer.includes('modifica')) {
-          console.log('🛠️ [Fase 1] Rilevata intenzione di correzione o smentita.');
-          if (cleanAnswer.includes('targa')) { foundPlate = ''; currentActions.setPlate(''); }
-          else if (cleanAnswer.includes('marca')) { foundBrand = ''; currentActions.setBrand(''); foundModel = ''; currentActions.setModel(''); }
-          else if (cleanAnswer.includes('modello')) { foundModel = ''; currentActions.setModel(''); }
-          else {
-            if (currentWaitingFor === 'plate') { foundModel = ''; currentActions.setModel(''); } 
-            else if (currentWaitingFor === 'model') { foundBrand = ''; currentActions.setBrand(''); }
-          }
-      }
-
-      // =======================================================
-      // FASE 2: ESTRAZIONE DATI SMART (Exact Match + Fuzzy Match)
-      // =======================================================
-      console.log('🔍 [Fase 2] Estrazione Dati Intelligente...');
-      
-      const plateMatch = nlpResult.utterance.replace(/[\s\-\.,]/g, '').toUpperCase().match(/[A-Z]{2}\d{3}[A-Z]{2}/);
-      if (plateMatch) { 
-        foundPlate = plateMatch[0]; 
-        currentActions.setPlate(foundPlate); 
-      }
-
-      // Marca
-      const nlpBrand = nlpResult.entities?.find((e: any) => e.entity === 'brand')?.sourceText;
-      if (nlpBrand) {
-        foundBrand = nlpBrand;
-        currentActions.setBrand(foundBrand);
-      } else {
-        const catalogBrand = currentCatalog.brands.find(b => exactMatch(cleanAnswer, b));
-        if (catalogBrand) { 
-          foundBrand = catalogBrand; 
-          currentActions.setBrand(foundBrand); 
-        }
-      }
-
-      if (foundBrand !== currentForm.brand && foundModel && foundBrand) {
-        const validModelsForNewBrand = currentCatalog.getModelsForBrand(foundBrand).map(m => m.toLowerCase());
-        if (!validModelsForNewBrand.includes(foundModel.toLowerCase())) {
-           foundModel = '';
-           currentActions.setModel('');
-        }
-      }
-
-      // Modello
-      const nlpModel = nlpResult.entities?.find((e: any) => e.entity === 'model')?.sourceText;
-      if (nlpModel) {
-        foundModel = nlpModel;
-        currentActions.setModel(foundModel);
-      } else {
-        const modelsToSearch = foundBrand 
-            ? currentCatalog.getModelsForBrand(foundBrand) 
-            : currentCatalog.brands.flatMap(b => currentCatalog.getModelsForBrand(b));
-
-        let catalogModel = modelsToSearch.find(m => exactMatch(cleanAnswer, m));
-
-        if (!catalogModel) {
-            for (const m of modelsToSearch) {
-                const mLower = m.toLowerCase();
-                if (!mLower.includes(' ') && mLower.length >= 4) {
-                    for (const w of wordsArray) {
-                        if (w.length >= 4 && Math.abs(w.length - mLower.length) <= 1) {
-                            if (levenshtein(w, mLower) <= 1) {
-                                catalogModel = m;
-                                console.log(`🪄 [Fuzzy Match] Parola "${w}" corretta automaticamente in "${m}"`);
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (catalogModel) break;
-            }
-        }
-
-        if (catalogModel) {
-            foundModel = catalogModel;
-            currentActions.setModel(catalogModel);
-            if (!foundBrand) {
-                const inferredBrand = currentCatalog.brands.find(b => currentCatalog.getModelsForBrand(b).includes(catalogModel as string));
-                if (inferredBrand) {
-                    console.log(`🧠 [Smart Match] Inferita la marca automatica: "${inferredBrand}" dal modello "${catalogModel}"`);
-                    foundBrand = inferredBrand;
-                    currentActions.setBrand(inferredBrand);
-                }
-            }
-        }
-      }
-
-      // =======================================================
-      // FASE 3: ASSEGNAZIONE DI CONTESTO (Fallback)
-      // =======================================================
-      const stopWords = ['aggiungi', 'inserisci', 'metti', 'la', 'una', 'un', 'il', 'lo', 'gli', 'le', 'è', 'di', 'no', 'scusa', 'nuova', 'scritto', 'con', 'come', 'hai', 'capito', 'vai', 'al', 'garage'];
-      const filteredWords = wordsArray.filter(w => !stopWords.includes(w) && w !== foundBrand?.toLowerCase());
-      const cleanContext = filteredWords.join(' ').trim();
-
-      if (filteredWords.length > 0 && filteredWords.length <= 4 && !isCancel && !isConfirm) {
-          if (currentWaitingFor === 'brand' && !foundBrand && cleanContext) { 
-            foundBrand = cleanContext.charAt(0).toUpperCase() + cleanContext.slice(1); 
-            currentActions.setBrand(foundBrand); 
-          }
-          else if (currentWaitingFor === 'model' && !foundModel && cleanContext) { 
-            foundModel = cleanContext.charAt(0).toUpperCase() + cleanContext.slice(1); 
-            currentActions.setModel(foundModel); 
-          }
-      }
-
-      // =======================================================
-      // FASE 4: NAVIGAZIONE MACCHINA A STATI
-      // =======================================================
-      console.log('🧭 [Fase 4] Avanzamento logica conversazionale...');
-      
-      if (currentWaitingFor === 'confirm_save') {
-        if (isConfirm) { 
-          currentActions.performSave(); 
-          speakOnly("Veicolo salvato."); 
-          setWaitingFor(null);
-        }
-        else if (isCancel) { 
-          setWaitingFor(null); 
-          speakOnly("Salvataggio annullato."); 
-        }
-        else { 
-          askAndListen("Scusami, non ho capito. Vuoi salvare il veicolo?", 'confirm_save'); 
-        }
-        console.groupEnd();
-        
-        // Ritorna il booleano per completare la propagazione in questa fase
-        return blockGlobalContext;
-      }
-
-      if (!foundBrand) {
-        askAndListen("Qual è la marca del veicolo?", 'brand');
-      }
-      else if (!foundModel) {
-        askAndListen(`Ok, ${foundBrand}. Che modello è?`, 'model');
-      }
-      else if (!foundPlate) {
-        askAndListen(`Perfetto, ${foundBrand} ${foundModel}. Qual è la targa?`, 'plate');
-      }
-      else {
-        askAndListen(`Ho tutto: ${foundBrand} ${foundModel}, targa ${foundPlate}. Salvo?`, 'confirm_save');
+      switch (result.intent) {
+        case 'CANCEL': handleCancel(); break;
+        case 'CONFIRM': handleConfirm(); break;
+        case 'ADD_VEHICLE':
+        case 'FORM_CORRECT_FIELD':
+        case 'FORM_FILL_FIELD':
+          handleFillOrCorrect(result.entities, result.intent);
+          break;
+        default:
+          promptUser("Scusa, non ho capito. Puoi ripetere?", ref.current.step);
+          break;
       }
 
       console.groupEnd();
-      
-      // 🔥 Ritorna `true` quando il form è attivo, avvisando VoiceContext di fermarsi
-      return blockGlobalContext; 
+      return true;
     });
-
-    return () => {
-      cleanup();
-      console.log("🎙️ [VoiceFlow] Rimozione Handler Vocale (Smontaggio componente).");
-    };
+    return () => unregister();
   }, [registerActionHandler]);
 
-  return { waitingFor };
+  return { step };
 }

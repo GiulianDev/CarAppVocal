@@ -40,13 +40,13 @@ export function useVehicleDetailVoiceFlow({ vehicle, actions }: VehicleDetailVoi
 
   useEffect(() => {
     const cleanup = registerActionHandler((nlpResult) => {
-      const rawAnswer = nlpResult.utterance.toLowerCase();
-      const cleanAnswer = rawAnswer.replace(/[.,!?]/g, '').trim();
+      const rawAnswer = nlpResult.utterance?.toLowerCase();
+      const cleanAnswer = rawAnswer?.replace(/[.,!?]/g, '').trim();
 
       // const confirmWords = ['si', 'sì', 'ok', 'certo', 'esatto', 'corretto', 'procedi', 'conferma', 'confermo', 'vai', 'imposta'];
       const cancelWords = ['no', 'annulla', 'sbagliato', 'errato', 'fermati', 'ferma'];
 
-      const wordsArray = cleanAnswer.split(/\s+/);
+      const wordsArray = cleanAnswer?.split(/\s+/);
       
       // const isConfirm = nlpResult.intent === 'intent.confirm' || confirmWords.includes(cleanAnswer) || wordsArray.some(word => confirmWords.includes(word));
       const isCancel = nlpResult.intent === 'intent.cancel' || cancelWords.includes(cleanAnswer) || wordsArray.some(word => cancelWords.includes(word));

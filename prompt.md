@@ -5,7 +5,7 @@ L'Architettura dell'App
 
 Ascolto (STT)
 - @capacitor-community/speech-recognition. 
-Sfrutta il motore di Android, pesa zero MB, funziona offline e ci dà la stringa di testo (es. "Inserisci la targa AB123CD per la mia nuova Golf").
+
 
 Comprensione (NLP.js): Passiamo la stringa al nostro motore NLP.js inizializzato dentro React.
 
@@ -30,3 +30,7 @@ ho un app react che permette di aggiungere e gestire dei ceivoli in un garage. a
 
 
 abbiamo quest'app in react in cui l'utente può aggiungere e gestire dei veicoli in un garage. al momento è prevista l'aggiunta di eventi generici, ma dobbiamo fare in modo che dopo aver aggiunto un evento, l'utente cliccandoci sopra accede alla pagina del detaglio, che poi è la stessa vista per l'aggiunta ma bloccata, e qui deve poter cliccare su modifica o elimina. dimmi se ti serve analizzare altri file. identifica prima le modifiche e poi procediamo a modificare un file alla volta
+
+
+
+ok per come mi immagino la cosa l'utente inizia probabilmente dicendo qualcosa tipo "aggiungi una panda" o "aggiungi una skoda" o ancora "aggiungi una fiat swang". sono tre casi che vanno gestiti perchè nel primo caso l'utente dice solo il modello, ma dalla lista dei veicoli l'app recupere anche il brand fiat e aggiunge fiat panda, nel secondo caso l'utente dice solo il brand, quindi l'app deve chiedere specificazioni sul modello, nel terzo caso esiste fiat nella lista ma non swang, quindi l'app chiederà se è corretto swang. infine l'utente può aggiungere brand e modello non in catalogo, in ogni caso se il match con il catalogo è basso l'app deve chiedere conferma se ciò che ha registrato è corretto. infine se l'utente vuole modificare un campo specifico, ad esempio dice "no il modello è sweng, con la è" l'app deve identificare il campo che l'untente cuole modificare. questa funzionalità sarà particolarmente importante quando poi l'utente inserirà gli eventi, perchè lì non ci sarà una lista o un catalogo, anche se possiamo pensare di crearlo per gli eventi più comuni se necessario. ma intanto correggiamo l'aggiunta di un veicolo poi passiamo alle altre funzionalità.
