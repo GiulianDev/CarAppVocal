@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useVoiceContext } from '../../../shared/VoiceCommand/VoiceContext';
 import { useSpeechAction } from '../../../shared/VoiceCommand/useSpeechAction';
 import type { Vehicle } from '../../../shared/Garage/vehicle';
-import type { EventFormData } from '../components/EventForm'; // Adegua il path se necessario
+import type { EventFormData } from '../components/EventForm';
+import type { VoiceAnalysisResult } from '../../../shared/VoiceCommand/types';
 
 interface VoiceEventsFlowProps {
   vehicle?: Vehicle | null;
@@ -11,12 +12,7 @@ interface VoiceEventsFlowProps {
   };
 }
 
-type WaitState =
-  | 'ask_title'
-  | 'ask_cost'
-  | 'ask_notes'
-  | 'confirm_save'
-  | null;
+type WaitState = 'ask_title' | 'ask_notes' | 'confirm_save' | null;
 
 export function useVoiceEventsFlow({ vehicle, actions }: VoiceEventsFlowProps) {
   const [waitingFor, setWaitingFor] = useState<WaitState>(null);
@@ -25,99 +21,86 @@ export function useVoiceEventsFlow({ vehicle, actions }: VoiceEventsFlowProps) {
   const { registerActionHandler } = useVoiceContext();
   const { speakAndListen, speakOnly } = useSpeechAction();
 
+  // Reference per evitare stale closures durante il dialogo step-by-step
+  const ref = useRef({ vehicle, actions, waitingFor, draftData });
+  useEffect(() => {
+    ref.current = { vehicle, actions, waitingFor, draftData };
+  });
+
   const askAndListen = (question: string, expectedField: WaitState) => {
     setWaitingFor(expectedField);
     speakAndListen(question);
   };
 
   useEffect(() => {
-    const cleanup = registerActionHandler((nlpResult) => {
-      const rawAnswer = nlpResult.utterance.toLowerCase();
-      const cleanAnswer = rawAnswer.replace(/[.,!?]/g, '').trim();
+    const cleanup = registerActionHandler((nlpResult: VoiceAnalysisResult): boolean => {
+      const { intent, entities, rawText } = nlpResult;
+      const text = (rawText || '').toLowerCase().trim();
+      const { vehicle: currentVehicle, actions: currentActions, waitingFor: currentWaitingFor, draftData: currentDraftData } = ref.current;
 
-      const confirmWords = ['si', 'sì', 'ok', 'certo', 'esatto', 'corretto', 'procedi', 'conferma', 'salva', 'vai'];
-      const cancelWords = ['no', 'annulla', 'sbagliato', 'errato', 'fermati', 'ferma', 'esci'];
-
-      const wordsArray = cleanAnswer.split(/\s+/);
-      const isConfirm = nlpResult.intent === 'intent.confirm' || confirmWords.includes(cleanAnswer) || wordsArray.some(w => confirmWords.includes(w));
-      const isCancel = nlpResult.intent === 'intent.cancel' || cancelWords.includes(cleanAnswer) || wordsArray.some(w => cancelWords.includes(w));
-
-      // Funzione utile per estrarre il prezzo dalla frase (es: "ho speso 150 euro e 50")
-      const extractNumber = (text: string) => {
-        const match = text.match(/\d+(?:[.,]\d+)?/);
-        return match ? parseFloat(match[0].replace(',', '.')) : null;
-      };
+      const isConfirm = intent === 'CONFIRM' || /\b(si|sì|ok|certo|esatto|corretto|procedi|conferma|salva|vai)\b/i.test(text);
+      const isCancel = intent === 'CANCEL' || /\b(no|annulla|sbagliato|errato|fermati|ferma|esci|salta)\b/i.test(text);
 
       // =======================================================
-      // CASO A: WIZARD DI INSERIMENTO EVENTO
+      // 1. WIZARD DI INSERIMENTO EVENTO IN CORSO
       // =======================================================
-      if (waitingFor) {
-        if (isCancel) {
+      if (currentWaitingFor) {
+        if (isCancel && currentWaitingFor !== 'ask_notes') {
           setWaitingFor(null);
           setDraftData({});
           speakOnly("Operazione annullata. Nessun evento salvato.");
-          return;
+          return true;
         }
 
-        if (waitingFor === 'ask_title') {
-          setDraftData(prev => ({ ...prev, title: nlpResult.utterance }));
-          askAndListen("Perfetto. Quanto hai speso per questa operazione? Se non hai speso nulla, dimmi zero.", 'ask_cost');
-          return;
+        if (currentWaitingFor === 'ask_title') {
+          const newTitle = entities.extractedText || text;
+          setDraftData(prev => ({ ...prev, title: newTitle }));
+          askAndListen("Ricevuto. Vuoi aggiungere delle note? Altrimenti dimmi solo di no.", 'ask_notes');
+          return true;
         }
 
-        if (waitingFor === 'ask_cost') {
-          const cost = extractNumber(cleanAnswer);
-          if (cost !== null) {
-            setDraftData(prev => ({ ...prev, cost: cost }));
-            askAndListen("Ricevuto. Vuoi aggiungere delle note aggiuntive? Altrimenti dimmi solo di no.", 'ask_notes');
-          } else {
-            askAndListen("Non ho capito la cifra. Quanto hai speso?", 'ask_cost');
-          }
-          return;
+        if (currentWaitingFor === 'ask_notes') {
+          // Se dice "no" o annulla in questo step, semplicemente saltiamo le note
+          const notes = isCancel ? undefined : (entities.extractedText || text);
+          setDraftData(prev => ({ ...prev, notes }));
+          
+          // Nota: usiamo il title da currentDraftData per la pronuncia (o una stringa fallback)
+          askAndListen(`Ottimo. Confermi il salvataggio per l'evento?`, 'confirm_save');
+          return true;
         }
 
-        if (waitingFor === 'ask_notes') {
-          const notes = (isConfirm || isCancel) ? '' : nlpResult.utterance;
-          setDraftData(prev => ({ ...prev, notes: notes }));
-          askAndListen(`Ottimo. Ricapitolando: intervento per ${draftData.title || 'Manutenzione'}. Confermi il salvataggio?`, 'confirm_save');
-          return;
-        }
-
-        if (waitingFor === 'confirm_save') {
+        if (currentWaitingFor === 'confirm_save') {
           if (isConfirm) {
-            // Inviamo i dati all'azione passata come prop
-            actions.submitForm({
-              title: draftData.title || 'Nuovo Evento',
-              notes: draftData.notes,
-              // Impostiamo la data di default a oggi, il form o il backend faranno il resto
+            currentActions.submitForm({
+              title: currentDraftData.title || 'Nuovo Evento',
+              notes: currentDraftData.notes,
+              category: 'manutenzione', // Default in assenza di disambiguazione
               date: new Date().toISOString().split('T')[0],
-              ...draftData
+              ...currentDraftData
             } as EventFormData);
             
             setWaitingFor(null);
             setDraftData({});
-            speakOnly("L'evento è stato salvato con successo nel libretto.");
+            speakOnly("L'evento è stato registrato con successo nel libretto.");
           } else {
-            askAndListen("Va bene, non salvo. Vuoi modificare qualcosa?", 'confirm_save');
+            askAndListen("Va bene, non salvo. Vuoi modificare qualcosa o esci?", 'confirm_save');
           }
-          return;
+          return true;
         }
       }
 
       // =======================================================
-      // CASO B: INNESCO E COMANDI LIBERI
+      // 2. INNESCO COMANDI LIBERI (Stato Idle)
       // =======================================================
+      const isAddEventIntent = /\b(aggiungi|inserisci|nuovo|registra)\b.*\b(evento|manutenzione|scadenza|spesa|tagliando)\b/i.test(text);
+      const eventKeywords = ['olio', 'gomme', 'freni', 'bollo', 'assicurazione', 'revisione', 'liquido', 'filtri', 'tagliando', 'motore'];
+      const foundKeyword = eventKeywords.find(kw => text.includes(kw));
 
-      if (nlpResult.intent === 'intent.add_event') {
-        if (!vehicle) {
+      if (isAddEventIntent || foundKeyword) {
+        if (!currentVehicle) {
           speakOnly("Attendi il caricamento del veicolo prima di procedere.");
-          return;
+          return true;
         }
-
-        // Cerchiamo di capire se l'utente ha già detto il tipo di evento
-        // Es: "Aggiungi cambio olio" -> Rileviamo "olio"
-        const eventKeywords = ['olio', 'gomme', 'freni', 'bollo', 'assicurazione', 'revisione', 'liquido', 'filtri', 'tagliando', 'motore'];
-        const foundKeyword = eventKeywords.find(kw => cleanAnswer.includes(kw));
 
         if (foundKeyword) {
           const titleCapitalized = foundKeyword.charAt(0).toUpperCase() + foundKeyword.slice(1);
@@ -126,19 +109,19 @@ export function useVoiceEventsFlow({ vehicle, actions }: VoiceEventsFlowProps) {
             : `Sostituzione/Controllo ${titleCapitalized}`;
           
           setDraftData({ title: computedTitle });
-          askAndListen(`Stiamo registrando un evento per ${computedTitle}. Quanto hai speso?`, 'ask_cost');
+          askAndListen(`Stiamo registrando un evento per ${computedTitle}. Vuoi aggiungere delle note?`, 'ask_notes');
         } else {
           setDraftData({});
           askAndListen("Certo. Che tipo di intervento o scadenza vuoi registrare? Ad esempio bollo, gomme o tagliando.", 'ask_title');
         }
-        return;
+        return true;
       }
 
+      return false; 
     });
 
     return cleanup;
-  }, [registerActionHandler, waitingFor, draftData, vehicle, actions, askAndListen, speakOnly]);
+  }, [registerActionHandler, askAndListen, speakOnly]);
 
-  // Se ti serve, puoi esportare `draftData` per fare il binding in real-time sui campi visivi del form!
   return { waitingFor, draftData };
 }

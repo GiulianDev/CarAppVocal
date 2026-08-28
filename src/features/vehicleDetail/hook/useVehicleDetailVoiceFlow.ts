@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useVoiceContext } from '../../../shared/VoiceCommand/VoiceContext';
 import { useSpeechAction } from '../../../shared/VoiceCommand/useSpeechAction';
 import type { Vehicle } from '../../../shared/Garage/vehicle';
+import type { VoiceAnalysisResult } from '../../../shared/VoiceCommand/types';
 
 interface VehicleDetailVoiceFlowProps {
   vehicle: Vehicle | null;
@@ -11,27 +12,20 @@ interface VehicleDetailVoiceFlowProps {
   };
 }
 
-// Stati di attesa per guidare la conversazione senza sovrapporsi tra flussi
-type WaitState = 
-  | 'confirm_clean' 
-  | 'confirm_delete' 
-  | 'delete_disambiguate_plate' 
-  | 'delete_disambiguate_model_or_plate'
-  | 'confirm_favorite'
-  | 'favorite_disambiguate_plate'
-  | 'favorite_disambiguate_model_or_plate'
-  | 'view_event_disambiguate_date'
-  | null;
+type WaitState = 'view_event_disambiguate_date' | null;
 
 export function useVehicleDetailVoiceFlow({ vehicle, actions }: VehicleDetailVoiceFlowProps) {
   const [waitingFor, setWaitingFor] = useState<WaitState>(null);
-  // pendingValue salva temporaneamente l'ID dell'auto coinvolta nell'azione corrente
   const [pendingEvents, setPendingEvents] = useState<any[]>([]);
-  // const [pendingValue, setPendingValue] = useState<string | null>(null);
-  const [pendingValue] = useState<string | null>(null);
 
   const { registerActionHandler } = useVoiceContext();
   const { speakAndListen, speakOnly } = useSpeechAction();
+
+  // Manteniamo i riferimenti aggiornati per evitare closure stanche nell'handler
+  const ref = useRef({ vehicle, actions, waitingFor, pendingEvents });
+  useEffect(() => {
+    ref.current = { vehicle, actions, waitingFor, pendingEvents };
+  });
 
   const askAndListen = (question: string, expectedField: WaitState) => {
     setWaitingFor(expectedField);
@@ -39,106 +33,100 @@ export function useVehicleDetailVoiceFlow({ vehicle, actions }: VehicleDetailVoi
   };
 
   useEffect(() => {
-    const cleanup = registerActionHandler((nlpResult) => {
-      const rawAnswer = nlpResult.utterance?.toLowerCase();
-      const cleanAnswer = rawAnswer?.replace(/[.,!?]/g, '').trim();
-
-      // const confirmWords = ['si', 'sì', 'ok', 'certo', 'esatto', 'corretto', 'procedi', 'conferma', 'confermo', 'vai', 'imposta'];
-      const cancelWords = ['no', 'annulla', 'sbagliato', 'errato', 'fermati', 'ferma'];
-
-      const wordsArray = cleanAnswer?.split(/\s+/);
-      
-      // const isConfirm = nlpResult.intent === 'intent.confirm' || confirmWords.includes(cleanAnswer) || wordsArray.some(word => confirmWords.includes(word));
-      const isCancel = nlpResult.intent === 'intent.cancel' || cancelWords.includes(cleanAnswer) || wordsArray.some(word => cancelWords.includes(word));
+    const cleanup = registerActionHandler((nlpResult: VoiceAnalysisResult): boolean => {
+      const { intent, entities, rawText } = nlpResult;
+      const text = (rawText || '').toLowerCase().trim();
+      const { vehicle, actions, waitingFor: currentWaitingFor, pendingEvents: currentPendingEvents } = ref.current;
 
       // =======================================================
-      // CASO A: Stiamo aspettando una risposta specifica
+      // 1. DIALOGHI IN SOSPESO (Es. Disambiguazione data)
       // =======================================================
-      if (waitingFor) {
+      if (currentWaitingFor) {
         
-        // --- GESTIONE AMBIGUITÀ EVENTO (Stesso tipo, date diverse) ---
-        if (waitingFor === 'view_event_disambiguate_date') {
-            if (isCancel) {
-              setWaitingFor(null);
-              setPendingEvents([]);
-              speakOnly("Operazione annullata.");
-              return;
-            }
+        if (intent === 'CANCEL' || /\b(no|annulla|ferma|esci|sbagliato)\b/i.test(text)) {
+          setWaitingFor(null);
+          setPendingEvents([]);
+          speakOnly("Operazione annullata.");
+          return true;
+        }
 
-            // Cerchiamo un anno o un pezzo di data nella risposta dell'utente
-            const yearMatch = rawAnswer.match(/\d{4}/);
-            const userDateHint = yearMatch ? yearMatch[0] : cleanAnswer;
+        if (currentWaitingFor === 'view_event_disambiguate_date') {
+          // Cerca un anno (4 cifre) o usa il testo ripulito
+          const yearMatch = text.match(/\d{4}/);
+          const userDateHint = yearMatch ? yearMatch[0] : (entities.extractedText || text);
 
-            const finalMatch = pendingEvents.find(e => e.date.includes(userDateHint));
+          const finalMatch = currentPendingEvents.find(e => e.date.includes(userDateHint));
 
-            if (finalMatch) {
-                speakOnly(`Apro i dettagli di ${finalMatch.title}.`);
-                actions.goToEvent(finalMatch.id);
-                setWaitingFor(null);
-                setPendingEvents([]);
-            } else {
-                askAndListen("Non ho trovato un evento con questa data. Vuoi riprovare?", 'view_event_disambiguate_date');
-            }
-            return;
+          if (finalMatch) {
+            speakOnly(`Apro i dettagli di ${finalMatch.title}.`);
+            actions.goToEvent(finalMatch.id);
+            setWaitingFor(null);
+            setPendingEvents([]);
+          } else {
+            askAndListen("Non ho trovato un evento con questa data. Vuoi riprovare?", 'view_event_disambiguate_date');
+          }
+          return true;
         }
       }
 
       // =======================================================
-      // CASO B: Nuovi comandi vocali liberi
+      // 2. NUOVI COMANDI VOCALI (Stato Idle)
       // =======================================================
       
-       // --- NAVIGA AL GARAGE ---
-      if (nlpResult.intent === 'intent.garage') {
-        speakOnly("Certo, ecco il garage");
+      // --- NAVIGA AL GARAGE ---
+      if (intent === 'NAVIGATE_GARAGE' || /\b(garage|lista auto|tutte le auto)\b/i.test(text)) {
+        speakOnly("Torno al garage.");
         actions.goToGarage();
-        return;
+        return true;
       }
 
       // --- APRI DETTAGLIO EVENTO ---
-      if (nlpResult.intent === 'intent.view_event') {
-          if (!vehicle || !vehicle.events || vehicle.events.length === 0) {
-              speakOnly("Non ci sono eventi registrati per questo veicolo.");
-              return;
-          }
+      // Poiché l'SLM non ha l'intento specifico VIEW_EVENT, cerchiamo parole chiave nel testo grezzo
+      const isEventRequest = /\b(apri|mostra|dettaglio|evento|scadenza|tagliando|bollo|assicurazione|olio|gomme|revisione)\b/i.test(text);
 
-          // 1. Cerchiamo parole chiave nel comando (es. "olio", "gomme", "bollo")
-          const excludeWords = ['vai', 'al', 'dettaglio', 'di', 'del', 'apri', 'mostrami', 'il', 'la', 'evento'];
-          const searchKeywords = wordsArray.filter(w => !excludeWords.includes(w) && w.length > 2);
+      if (isEventRequest) {
+        if (!vehicle || !vehicle.events || vehicle.events.length === 0) {
+          speakOnly("Non ci sono eventi registrati per questo veicolo.");
+          return true;
+        }
 
-          let matchedEvents = vehicle.events.filter(e => {
-              const titleLower = e.title.toLowerCase();
-              const catLower = e.category?.toLowerCase() || '';
-              return searchKeywords.some(kw => titleLower.includes(kw) || catLower.includes(kw));
-          });
+        // Filtriamo le stopwords contestuali per trovare il nome dell'evento
+        const excludeWords = ['apri', 'mostra', 'dettaglio', 'il', 'la', 'di', 'del', 'evento', 'scadenza'];
+        const searchKeywords = text.split(/\s+/).filter(w => !excludeWords.includes(w) && w.length > 2);
 
-          // 2. Se l'utente ha già detto un anno nella frase iniziale (es. "bollo 2023"), filtriamo subito!
-          const yearMatch = rawAnswer.match(/\d{4}/);
-          if (yearMatch && matchedEvents.length > 1) {
-              matchedEvents = matchedEvents.filter(e => e.date.includes(yearMatch[0]));
-          }
+        let matchedEvents = vehicle.events.filter(e => {
+          const titleLower = e.title.toLowerCase();
+          const catLower = e.category?.toLowerCase() || '';
+          return searchKeywords.some(kw => titleLower.includes(kw) || catLower.includes(kw));
+        });
 
-          // 3. Risoluzione
-          if (matchedEvents.length === 1) {
-              speakOnly(`Apro il dettaglio di ${matchedEvents[0].title}.`);
-              actions.goToEvent(matchedEvents[0].id);
-          } 
-          else if (matchedEvents.length > 1) {
-              // Salviamo le corrispondenze trovate per chiedere la data
-              setPendingEvents(matchedEvents);
-              askAndListen(`Ho trovato ${matchedEvents.length} eventi che corrispondono. Dimmi l'anno o la data di quello che cerchi.`, 'view_event_disambiguate_date');
-          } 
-          else {
-              speakOnly("Non ho trovato nessun evento con questo nome nel libretto.");
-          }
-          return;
+        // Se l'utente ha menzionato un anno (es. "bollo 2023"), pre-filtriamo
+        const yearMatch = text.match(/\d{4}/);
+        if (yearMatch && matchedEvents.length > 1) {
+          matchedEvents = matchedEvents.filter(e => e.date.includes(yearMatch[0]));
+        }
+
+        if (matchedEvents.length === 1) {
+          speakOnly(`Apro il dettaglio di ${matchedEvents[0].title}.`);
+          actions.goToEvent(matchedEvents[0].id);
+          return true;
+        } 
+        else if (matchedEvents.length > 1) {
+          setPendingEvents(matchedEvents);
+          askAndListen(`Ho trovato ${matchedEvents.length} eventi corrispondenti. Dimmi l'anno o la data di quello che cerchi.`, 'view_event_disambiguate_date');
+          return true;
+        } 
+        else {
+          speakOnly("Non ho trovato nessun evento con questo nome nel libretto.");
+          return true;
+        }
       }
 
+      return false; // Comando non gestito localmente
     });
 
     return cleanup;
-  }, [
-    registerActionHandler, waitingFor, pendingValue, vehicle, actions, askAndListen, speakOnly
-  ]);
+  }, [registerActionHandler, askAndListen, speakOnly]);
 
   return { waitingFor };
 }

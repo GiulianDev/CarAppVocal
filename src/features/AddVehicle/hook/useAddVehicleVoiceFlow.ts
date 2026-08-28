@@ -32,6 +32,7 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProp
   const { registerActionHandler } = useVoiceContext();
   const { speakAndListen, speakOnly } = useSpeechAction();
 
+  // Indice globale per Fuzzy Match
   const globalFuse = useMemo(() => {
     const entries: { brand: string; model: string; type: 'brand' | 'model'; searchKey: string }[] = [];
     catalog.brands.forEach(brand => {
@@ -41,7 +42,6 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProp
         entries.push({ brand, model, type: 'model', searchKey: `${brand} ${model}` });
       });
     });
-    // Threshold alzato a 0.4 per essere più permissivi con il catalogo, oltre il 0.4 è considerato "sconosciuto"
     return new Fuse(entries, { keys: ['searchKey'], threshold: 0.4, includeScore: true });
   }, [catalog]);
 
@@ -69,7 +69,7 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProp
   };
 
   const handleConfirm = () => {
-    const { actions, step, candidateValue } = ref.current;
+    const { actions, form, step, candidateValue } = ref.current;
     
     if (step === 'CONFIRM_UNKNOWN_MODEL') {
        actions.setModel(candidateValue);
@@ -79,24 +79,38 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProp
        actions.setBrand(candidateValue);
        return promptUser(`Perfetto, marca salvata come ${candidateValue}. Qual è il modello?`, 'WAITING_MODEL');
     }
-    if (step === 'WAITING_CONFIRM' || step === 'WAITING_PLATE') {
+    if (step === 'WAITING_CONFIRM') {
       if (actions.performSave()) {
         speakOnly("Veicolo salvato con successo!");
         setStep('IDLE');
       } else {
         promptUser("Dati incompleti. Qual è la marca?", 'WAITING_BRAND');
       }
-    } else {
-      promptUser("Non ho capito cosa confermare. In che step ti posso aiutare?", step);
+      return;
     }
+    if (step === 'WAITING_PLATE') {
+      if (form.plate) {
+        if (actions.performSave()) {
+          speakOnly("Veicolo salvato con successo!");
+          setStep('IDLE');
+        } else {
+          promptUser("Mancano alcuni dati. Dimmi la marca.", 'WAITING_BRAND');
+        }
+      } else {
+        promptUser("Manca la targa del veicolo. Dimmi la targa.", 'WAITING_PLATE');
+      }
+      return;
+    }
+    
+    promptUser("Non ho capito cosa confermare. Come posso aiutarti?", step);
   };
 
-  const handleFillOrCorrect = (entities: VoiceEntities, intent: string) => {
+  const handleFillOrCorrect = (entities: VoiceEntities) => {
     const { form, actions, step, globalFuse } = ref.current;
     const { targetField, extractedText, plate } = entities;
     const query = extractedText || '';
 
-    // 0. Fallback vuoto
+    // 0. Fallback se input vuoto
     if (!query && !plate) {
        if (step === 'WAITING_BRAND') return promptUser("Qual è la marca del veicolo?", 'WAITING_BRAND');
        if (step === 'WAITING_MODEL') return promptUser(`Qual è il modello della tua ${form.brand || 'auto'}?`, 'WAITING_MODEL');
@@ -104,38 +118,22 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProp
        return promptUser("Puoi ripetere?", step);
     }
 
-    // 1. Targa Assoluta
+    // 1. Targa Assoluta / Rilevata
     if (plate || targetField === 'plate') {
       const finalPlate = plate || query.replace(/\s/g, '').toUpperCase();
       if (finalPlate) {
         actions.setPlate(finalPlate);
-        return promptUser(`Targa ${finalPlate} acquisita. Salvo il veicolo?`, 'WAITING_CONFIRM');
+        return promptUser(`Targa ${finalPlate} acquisita. Salvo il veicolo nel garage?`, 'WAITING_CONFIRM');
       }
     }
 
-    // 2. Correzione Esplicita ("No il modello è Sweng")
-    if (targetField === 'model' && query) {
-       const searchResults = globalFuse.search(query);
+    // 2. Correzione Esplicita MARCA (con filtro strict type === 'brand')
+    if (targetField === 'brand' && query) {
+       const searchResults = globalFuse.search(query).filter(res => res.item.type === 'brand');
        const bestMatch = searchResults[0]?.item;
        const score = searchResults[0]?.score ?? 1;
-
-       // Se è un match perfetto, lo accetta a occhi chiusi
-       if (bestMatch && bestMatch.type === 'model' && score <= 0.25) {
-          actions.setBrand(bestMatch.brand); 
-          actions.setModel(bestMatch.model);
-          return promptUser(`Modello aggiornato a ${bestMatch.brand} ${bestMatch.model}. Qual è la targa?`, 'WAITING_PLATE');
-       } else {
-          // Altrimenti, chiede conferma per lo spelling insolito
-          setCandidateValue(query);
-          return promptUser(`Non ho trovato "${query}" in archivio. Confermi che il modello è "${query}"?`, 'CONFIRM_UNKNOWN_MODEL');
-       }
-    }
-
-    if (targetField === 'brand' && query) {
-       const bestMatch = globalFuse.search(query)[0]?.item;
-       const score = globalFuse.search(query)[0]?.score ?? 1;
        
-       if (bestMatch && bestMatch.type === 'brand' && score <= 0.3) {
+       if (bestMatch && score <= 0.3) {
           actions.setBrand(bestMatch.brand);
           actions.setModel(''); 
           return promptUser(`Marca corretta in ${bestMatch.brand}. Dimmi il modello.`, 'WAITING_MODEL');
@@ -145,24 +143,73 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProp
        }
     }
 
-    // 3. Ricerca Globale e "Leftover Extraction" (Es: "Aggiungi una Fiat Swang")
+    // 3. Correzione Esplicita MODELLO (con filtro strict type === 'model')
+    if (targetField === 'model' && query) {
+       const searchResults = globalFuse.search(query).filter(res => res.item.type === 'model');
+       const bestMatch = searchResults[0]?.item;
+       const score = searchResults[0]?.score ?? 1;
+
+       if (bestMatch && score <= 0.25) {
+          actions.setBrand(bestMatch.brand); 
+          actions.setModel(bestMatch.model);
+          return promptUser(`Modello aggiornato a ${bestMatch.brand} ${bestMatch.model}. Qual è la targa?`, 'WAITING_PLATE');
+       } else {
+          setCandidateValue(query);
+          return promptUser(`Non ho trovato "${query}" in archivio. Confermi che il modello è "${query}"?`, 'CONFIRM_UNKNOWN_MODEL');
+       }
+    }
+
+    // 4. Input generico in base allo STEP corrente
+    if (step === 'WAITING_BRAND' && query) {
+       const searchResults = globalFuse.search(query).filter(res => res.item.type === 'brand');
+       const bestMatch = searchResults[0]?.item;
+       const score = searchResults[0]?.score ?? 1;
+
+       if (bestMatch && score <= 0.35) {
+          actions.setBrand(bestMatch.brand);
+          actions.setModel('');
+          return promptUser(`Marca impostata su ${bestMatch.brand}. Qual è il modello?`, 'WAITING_MODEL');
+       } else {
+          setCandidateValue(query);
+          return promptUser(`Non ho trovato "${query}" nel listino marchi. Confermi che è la marca dell'auto?`, 'CONFIRM_UNKNOWN_BRAND');
+       }
+    }
+
+    if (step === 'WAITING_MODEL' && query) {
+       const searchResults = globalFuse.search(query).filter(res => res.item.type === 'model');
+       const bestMatch = searchResults[0]?.item;
+       const score = searchResults[0]?.score ?? 1;
+
+       if (bestMatch && score <= 0.35) {
+          actions.setModel(bestMatch.model);
+          if (!form.brand) actions.setBrand(bestMatch.brand);
+          return promptUser(`Ho impostato il modello ${bestMatch.model}. Dimmi la targa.`, 'WAITING_PLATE');
+       } else {
+          setCandidateValue(query);
+          return promptUser(`Non ho trovato il modello "${query}" in listino. Confermi che è corretto per la tua ${form.brand || 'auto'}?`, 'CONFIRM_UNKNOWN_MODEL');
+       }
+    }
+
+    if (step === 'WAITING_PLATE' && query) {
+       const formattedPlate = query.replace(/\s/g, '').toUpperCase();
+       actions.setPlate(formattedPlate);
+       return promptUser(`Targa impostata su ${formattedPlate}. Procedo con il salvataggio?`, 'WAITING_CONFIRM');
+    }
+
+    // 5. Ricerca Globale Fallback (Es: "Aggiungi una Fiat Swang" o "Aggiungi Panda")
     if (query) {
       const bestMatch = globalFuse.search(query)[0]?.item;
       const score = globalFuse.search(query)[0]?.score ?? 1;
 
       if (bestMatch && score <= 0.4) {
         if (bestMatch.type === 'model') {
-          // Es: "Aggiungi Panda" -> Trova Fiat Panda
           actions.setBrand(bestMatch.brand);
           actions.setModel(bestMatch.model);
           return promptUser(`Ho impostato ${bestMatch.brand} ${bestMatch.model}. Qual è la targa?`, 'WAITING_PLATE');
         }
         
         if (bestMatch.type === 'brand') {
-          // Es: "Aggiungi Skoda" oppure "Aggiungi Fiat Swang"
           actions.setBrand(bestMatch.brand);
-          
-          // Estrae eventuale testo residuo dalla query (es: "fiat swang" -> toglie "fiat" -> "swang")
           const leftover = query.toLowerCase().replace(bestMatch.brand.toLowerCase(), '').trim();
           
           if (leftover) {
@@ -174,26 +221,18 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProp
           }
         }
       } else {
-        // La stringa non corrisponde a nulla nel catalogo (Es: "Aggiungi una Tesla Cybertruck")
-        // Facciamo fallback sullo step corrente, chiedendo conferme specifiche
-        if (step === 'WAITING_BRAND' || step === 'IDLE') {
+        // Intera frase sconosciuta
+        if (!form.brand) {
            setCandidateValue(query);
            return promptUser(`Non ho trovato "${query}" in listino. Confermi che è la marca dell'auto?`, 'CONFIRM_UNKNOWN_BRAND');
+        } else if (!form.model) {
+           setCandidateValue(query);
+           return promptUser(`Non conosco il modello "${query}". Confermi che è il modello per la tua ${form.brand}?`, 'CONFIRM_UNKNOWN_MODEL');
         }
       }
     }
 
-    // 4. Fallback Progressivo Base
-    if (step === 'WAITING_MODEL' && query) {
-       setCandidateValue(query);
-       return promptUser(`Non sono sicuro del modello "${query}". Confermi che è corretto?`, 'CONFIRM_UNKNOWN_MODEL');
-    }
-    
-    if (!form.brand) return promptUser("Non ho capito. Qual è la marca del veicolo?", 'WAITING_BRAND');
-    if (!form.model) return promptUser(`Qual è il modello della tua ${form.brand}?`, 'WAITING_MODEL');
-    if (!form.plate) return promptUser(`Dimmi la targa per la ${form.brand} ${form.model}.`, 'WAITING_PLATE');
-
-    return promptUser("Scusa, non ho capito. Puoi ripetere?", step);
+    return promptUser("Scusa, non ho capito bene. Puoi ripetere?", step);
   };
 
   useEffect(() => {
@@ -207,7 +246,7 @@ export function useAddVehicleVoiceFlow({ catalog, form, actions }: VoiceFlowProp
         case 'ADD_VEHICLE':
         case 'FORM_CORRECT_FIELD':
         case 'FORM_FILL_FIELD':
-          handleFillOrCorrect(result.entities, result.intent);
+          handleFillOrCorrect(result.entities);
           break;
         default:
           promptUser("Scusa, non ho capito. Puoi ripetere?", ref.current.step);
