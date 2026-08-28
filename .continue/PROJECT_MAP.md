@@ -2,28 +2,69 @@
 ├── App.tsx
 ├── assets/
 ├── features/
-│   ├── addVehicle/
-│   │   ├── AddVehicleView.tsx
+│   ├── AddVehicle/
+│   │   ├── AddVehiclePage.tsx
 │   │   ├── hook/
-│   │   │   ├── useAddVehicle.ts
+│   │   │   ├── useAddVehicleForm.ts
+│   │   │   ├── useAddVehicleVoiceFlow.ts
 │   │   │   ├── useVehicleCatalog.ts
 │   │   ├── vehicleService.ts
-│   ├── vehicleDetail/
-│   │   ├── VehicleDetailView.tsx
-│   ├── vehiclesDashboard/
-│   │   ├── VehiclesDashboardView.tsx
+│   ├── Calendar/
+│   │   ├── CalendarPage.tsx
+│   ├── Events/
+│   │   ├── VehicleEventsPage.tsx
 │   │   ├── components/
-│   │   ├── useDeleteVehicle.ts
+│   │   │   ├── EventForm.tsx
+│   │   ├── hook/
+│   │   │   ├── useVoiceEventsFlow.ts
+│   ├── GaragePage/
+│   │   ├── GaragePage.tsx
+│   │   ├── components/
+│   │   │   ├── GarageCard.tsx
+│   │   ├── hook/
+│   │   │   ├── useGarageVoiceFlow.ts
+│   ├── VehicleDetail/
+│   │   ├── VehicleDetailPage.tsx
+│   │   ├── components/
+│   │   │   ├── EventsList.tsx
+│   │   │   ├── VehicleInfo.tsx
+│   │   ├── hook/
+│   │   │   ├── useVehicleDetailVoiceFlow.ts
+│   ├── header/
+│   │   ├── AuthButton/
+│   │   │   ├── AuthButton.css
+│   │   │   ├── AuthButton.tsx
+│   │   │   ├── AuthMenu.tsx
+│   │   ├── Header.css
+│   │   ├── Header.tsx
 ├── index.css
 ├── main.tsx
+├── router.tsx
 ├── shared/
-│   ├── context/
-│   │   ├── CarContext.tsx
-│   ├── services/
-│   ├── types/
-│   │   ├── car.ts
+│   ├── Auth/
+│   │   ├── AuthContext.tsx
+│   │   ├── authService.ts
+│   ├── Garage/
+│   │   ├── old_CarContext.tsx
+│   │   ├── useGarage.ts
+│   │   ├── vehicle.ts
+│   ├── Utils/
+│   │   ├── Utils.tsx
+│   ├── VoiceCommand/
+│   │   ├── VoiceContext.tsx
+│   │   ├── nlpService.ts
+│   │   ├── nlpService_old.ts
+│   │   ├── nlpjs.d.ts
+│   │   ├── sml.worker.ts
+│   │   ├── types.ts
+│   │   ├── useSpeechAction.ts
+│   │   ├── useVoiceCommand.ts
+│   ├── config/
+│   │   ├── firebase.ts
 │   ├── ui/
 │   │   ├── Button.tsx
 │   │   ├── Combobox.tsx
+│   │   ├── GlassCard.tsx
 │   │   ├── Input.tsx
+│   │   ├── VoiceFab.tsx
 
